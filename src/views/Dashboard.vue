@@ -235,5 +235,10 @@ onMounted(() => {
     }
   }
 }
+@media (max-width: 767px) {
+  .project-table{
+    width: 470px;
+  }
+}
 
 </style>

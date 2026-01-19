@@ -216,26 +216,40 @@ export const mockDiffResults: DiffResult[] = [
             type: DIFF_TYPE.MODIFIED,
             path: 'GET /pets/responses/200',
             oldValue: {
-              schema: {
-                items: {
-                  properties: {
-                    id: { type: 'integer' },
-                    name: { type: 'string' },
-                    tag: { type: 'string' }
+              description: 'A list of pets',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer' },
+                        name: { type: 'string' },
+                        tag: { type: 'string' }
+                      }
+                    }
                   }
                 }
               }
             },
             newValue: {
-              schema: {
-                items: {
-                  properties: {
-                    id: { type: 'integer' },
-                    name: { type: 'string' },
-                    tag: { type: 'string' },
-                    status: { type: 'string', enum: ['available', 'pending', 'sold'] }
-                  },
-                  required: ['id', 'name']
+              description: 'A list of pets',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'integer' },
+                        name: { type: 'string' },
+                        tag: { type: 'string' },
+                        status: { type: 'string', enum: ['available', 'pending', 'sold'] }
+                      },
+                      required: ['id', 'name']
+                    }
+                  }
                 }
               }
             },
@@ -253,8 +267,25 @@ export const mockDiffResults: DiffResult[] = [
             path: 'POST /pets',
             newValue: {
               summary: 'Create a pet',
-              requestBody: {},
-              responses: {}
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      type: 'object',
+                      properties: {
+                        name: { type: 'string' },
+                        tag: { type: 'string' }
+                      },
+                      required: ['name']
+                    }
+                  }
+                }
+              },
+              responses: {
+                '201': {
+                  description: 'Pet created'
+                }
+              }
             },
             description: '신규 API 추가: POST /pets'
           }
