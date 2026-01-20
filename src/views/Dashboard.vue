@@ -76,16 +76,103 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useProjectStore } from '@/stores/project-store'
+import { useSettingsStore } from '@/stores/settings-store'
 import ProjectTableRow from '@/components/ProjectTableRow.vue'
 import SettingsModal from '@/components/SettingsModal.vue'
 
 const store = useProjectStore()
+const settingsStore = useSettingsStore()
 const projects = computed(() => store.projects.filter(p => p.isActive))
 const isLoading = computed(() => store.isLoading)
 const showSettings = ref(false)
 const isDev = import.meta.env.DEV
+
+// 설정 변경 감지하여 프로젝트 자동 로드
+async function loadProjectsIfNeeded() {
+  // console.log('[Dashboard loadProjectsIfNeeded] ==> 호출됨 <==')
+  // console.log('[Dashboard] settingsStore:', settingsStore)
+  // console.log('[Dashboard] settingsStore.settings:', settingsStore.settings)
+  // console.log('[Dashboard] settingsStore.settings.apiBaseUrl:', settingsStore.settings.apiBaseUrl)
+  // console.log('[Dashboard] typeof settingsStore.settings.apiBaseUrl:', typeof settingsStore.settings.apiBaseUrl)
+  // console.log('[Dashboard] settingsStore.apiBaseUrl (computed):', settingsStore.apiBaseUrl)
+  // console.log('[Dashboard] settingsStore.hasApiConfigured (computed):', settingsStore.hasApiConfigured)
+  
+  const hasApiBaseUrl = settingsStore.hasApiConfigured || !!settingsStore.settings.apiBaseUrl
+
+  // LocalStorage 직접 확인
+  const storedSettings = localStorage.getItem('api-watcher-settings')
+  if (storedSettings) {
+    try {
+      const parsed = JSON.parse(storedSettings)
+      console.log('[Dashboard] 파싱된 설정:', parsed)
+      console.log('[Dashboard] 파싱된 apiBaseUrl:', parsed.apiBaseUrl)
+    } catch (e) {
+      console.error('[Dashboard] LocalStorage 파싱 실패:', e)
+    }
+  }
+  
+  if (hasApiBaseUrl && store.projects.length === 0) {
+    console.log('[Dashboard] ✅ 조건 만족 - loadProjectsFromBackend 호출')
+    try {
+      await store.loadProjectsFromBackend()
+      console.log('[Dashboard] ✅ loadProjectsFromBackend 완료')
+    } catch (error) {
+      console.error('[Dashboard] ❌ 프로젝트 로드 실패:', error)
+    }
+  } else {
+    console.log('[Dashboard] ❌ 조건 불만족 - loadProjectsFromBackend 호출 안 함')
+  }
+}
+
+// 설정 변경 감지
+watch(
+  () => settingsStore.hasApiConfigured,
+  async (hasApiConfigured, oldValue) => {
+    console.log('[Dashboard watch] hasApiConfigured 변경:', {
+      oldValue,
+      newValue: hasApiConfigured,
+      'settingsStore.settings': settingsStore.settings,
+      'settingsStore.settings.apiBaseUrl': settingsStore.settings.apiBaseUrl
+    })
+    await loadProjectsIfNeeded()
+  }
+)
+
+// apiBaseUrl 변경 감지
+watch(
+  () => settingsStore.settings.apiBaseUrl,
+  async (newUrl, oldUrl) => {
+    console.log('[Dashboard watch] apiBaseUrl 변경:', {
+      oldUrl,
+      newUrl,
+      typeof_newUrl: typeof newUrl,
+      typeof_oldUrl: typeof oldUrl,
+      'settingsStore.settings': settingsStore.settings,
+      'settingsStore.hasApiConfigured': settingsStore.hasApiConfigured
+    })
+    if (newUrl && newUrl !== oldUrl) {
+      console.log('[Dashboard watch] 새 URL로 프로젝트 로드 시도')
+      await loadProjectsIfNeeded()
+    } else {
+      console.log('[Dashboard watch] URL 변경 없거나 비어있음 - 로드 안 함')
+    }
+  }
+)
+
+// settings 객체 전체 감시 (깊은 감시)
+watch(
+  () => settingsStore.settings,
+  async (newValue, oldValue) => {
+    console.log('[Dashboard watch] settings 전체 변경됨:', {
+      oldValue,
+      newValue,
+      'apiBaseUrl 변경': oldValue?.apiBaseUrl !== newValue?.apiBaseUrl
+    })
+  },
+  { deep: true }
+)
 
 async function checkAllProjects() {
   for (const project of projects.value) {
@@ -117,8 +204,34 @@ function handleSettingsClose() {
   showSettings.value = false
 }
 
-onMounted(() => {
-  // 초기 데이터 로드는 store에서 자동으로 처리됨
+onMounted(async () => {
+  console.log('[Dashboard onMounted] ==> 시작 <==')
+  
+  // 즉시 확인
+  console.log('[Dashboard onMounted] 초기 상태:')
+  console.log('  - settingsStore.settings:', settingsStore.settings)
+  console.log('  - settingsStore.settings.apiBaseUrl:', settingsStore.settings.apiBaseUrl)
+  console.log('  - settingsStore.hasApiConfigured:', settingsStore.hasApiConfigured)
+  
+  // 설정이 로드될 때까지 잠시 대기 (LocalStorage에서 로드하는 시간)
+  console.log('[Dashboard onMounted] 100ms 대기 중...')
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // 대기 후 재확인
+  console.log('[Dashboard onMounted] 100ms 대기 후:')
+  console.log('  - settingsStore.settings:', settingsStore.settings)
+  console.log('  - settingsStore.settings.apiBaseUrl:', settingsStore.settings.apiBaseUrl)
+  console.log('  - settingsStore.hasApiConfigured:', settingsStore.hasApiConfigured)
+  
+  // LocalStorage 직접 확인
+  const storedSettings = localStorage.getItem('api-watcher-settings')
+  console.log('[Dashboard onMounted] LocalStorage:', storedSettings)
+  
+  // 초기 로드 시도
+  console.log('[Dashboard onMounted] loadProjectsIfNeeded() 호출')
+  await loadProjectsIfNeeded()
+  
+  console.log('[Dashboard onMounted] ==> 완료 <==')
 })
 </script>
 

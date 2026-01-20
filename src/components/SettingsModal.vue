@@ -8,15 +8,17 @@
 
       <form class="modal-body" @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label for="apiBaseUrl">API 기본 주소</label>
+          <label for="apiBaseUrl">백엔드 서버 주소 (선택사항)</label>
           <input
             id="apiBaseUrl"
             v-model="form.apiBaseUrl"
             type="url"
-            placeholder="https://api.example.com"
+            placeholder="비워두면 LocalStorage 사용 (예: http://localhost:3001)"
           />
           <p class="help-text">
-            백엔드 API의 기본 주소를 입력하세요. 비워두면 LocalStorage를 사용합니다.
+            <strong>💡 팁:</strong> 이 필드를 <strong>비워두면</strong> 브라우저의 LocalStorage를 사용합니다. (추천)<br>
+            <strong>백엔드 사용 시:</strong> API Watcher 백엔드 서버 주소 입력 (예: http://localhost:3001)<br>
+            <strong>현재 상태:</strong> <code>{{ form.apiBaseUrl || '비어있음 (LocalStorage 사용 중)' }}</code>
           </p>
         </div>
 
@@ -71,6 +73,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings-store'
+import { useProjectStore } from '@/stores/project-store'
 import { apiService } from '@/services/api-service'
 import type { AppSettings } from '@/types/settings'
 
@@ -119,7 +122,9 @@ onMounted(() => {
   loadSettings()
 })
 
-function handleSubmit() {
+async function handleSubmit() {
+  console.log('[SettingsModal] handleSubmit 시작', { form: form })
+  
   isSubmitting.value = true
 
   const updates: Partial<AppSettings> = {
@@ -136,21 +141,77 @@ function handleSubmit() {
     updates.apiKeyHeader = undefined
   }
 
+  console.log('[SettingsModal] 저장할 업데이트:', updates)
+  
   settingsStore.updateSettings(updates)
+  
+  console.log('[SettingsModal] updateSettings 완료')
+  console.log('[SettingsModal] 현재 settingsStore.settings:', settingsStore.settings)
+  console.log('[SettingsModal] 현재 settingsStore.apiBaseUrl:', settingsStore.apiBaseUrl)
   
   // API 서비스 재생성
   apiService.recreateClient()
+  
+  console.log('[SettingsModal] API 서비스 재생성 완료')
+  
+  // 프로젝트 스토어 재초기화 (백엔드 연결 상태 변경 시)
+  const projectStore = useProjectStore()
+  
+  // 설정이 변경되었으므로 프로젝트 목록 초기화 후 다시 로드
+  if (updates.apiBaseUrl) {
+    console.log('[SettingsModal] 백엔드 모드로 전환 - 기존 프로젝트 초기화')
+    // 백엔드 모드로 전환 시 기존 프로젝트 초기화
+    projectStore.projects = []
+    projectStore.snapshots = []
+    projectStore.diffResults = []
+  }
+  
+  console.log('[SettingsModal] projectStore.initialize() 호출')
+  await projectStore.initialize()
+  
+  // 백엔드가 설정되었고 프로젝트가 없으면 명시적으로 로드
+  if (updates.apiBaseUrl && projectStore.projects.length === 0) {
+    console.log('[SettingsModal] 백엔드에서 프로젝트 로드 시도')
+    try {
+      await projectStore.loadProjectsFromBackend()
+      console.log('[SettingsModal] 프로젝트 로드 성공')
+    } catch (error) {
+      console.error('[SettingsModal] 설정 저장 후 프로젝트 로드 실패:', error)
+    }
+  }
+  
+  console.log('[SettingsModal] handleSubmit 완료')
   
   isSubmitting.value = false
   emit('close')
 }
 
 function handleReset() {
-  // 폼만 초기화 (저장하지 않음)
-  form.apiBaseUrl = ''
-  form.apiKey = ''
-  form.apiKeyHeader = 'X-API-Key'
-  hasApiKey.value = false
+  // 설정 완전히 초기화 (즉시 저장)
+  const confirmReset = confirm('모든 설정을 초기화하고 LocalStorage 모드로 전환하시겠습니까?\n\n기존 프로젝트 데이터는 유지됩니다.')
+  
+  if (confirmReset) {
+    form.apiBaseUrl = ''
+    form.apiKey = ''
+    form.apiKeyHeader = 'X-API-Key'
+    hasApiKey.value = false
+    
+    // 즉시 저장
+    settingsStore.updateSettings({
+      apiBaseUrl: undefined,
+      apiKey: undefined,
+      apiKeyHeader: undefined
+    })
+    
+    // API 서비스 재생성
+    apiService.recreateClient()
+    
+    // 프로젝트 스토어 재초기화
+    const projectStore = useProjectStore()
+    projectStore.initialize()
+    
+    alert('✅ 설정이 초기화되었습니다.\nLocalStorage 모드로 전환되었습니다.')
+  }
 }
 </script>
 
@@ -252,6 +313,15 @@ function handleReset() {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
     line-height: 1.5;
+
+    code {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--color-primary);
+    }
   }
 }
 

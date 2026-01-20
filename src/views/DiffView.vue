@@ -118,6 +118,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project-store'
+import { useSettingsStore } from '@/stores/settings-store'
 import { DIFF_TYPE } from '@/types/diff'
 import type { EndpointDiff, DiffChange } from '@/types/diff'
 import { generateTypeScriptType } from '@/utils/schema-to-typescript'
@@ -126,6 +127,7 @@ import type { SwaggerSchema } from '@/types/swagger'
 const route = useRoute()
 const router = useRouter()
 const store = useProjectStore()
+const settingsStore = useSettingsStore()
 
 const projectId = route.params.projectId as string
 const snapshotId = route.params.snapshotId as string
@@ -324,12 +326,36 @@ function goHome() {
   router.push('/')
 }
 
-onMounted(() => {
-  if (!project.value || !diffResult.value) {
+onMounted(async () => {
+  if (!project.value) {
     router.push('/')
-  } else {
-    initializeExpandedState()
+    return
   }
+
+  // diffResult가 없으면 백엔드에서 로드 시도
+  if (!diffResult.value && settingsStore.hasApiConfigured) {
+    // 먼저 프로젝트의 모든 diff를 로드
+    await store.loadDiffsFromBackend(projectId)
+    
+    // 여전히 찾지 못하면 snapshotId로 직접 찾기 시도
+    // (diff는 currentSnapshotId로 찾지만, 실제로는 diff ID로 조회해야 할 수도 있음)
+    const found = store.diffResults.find(
+      d => d.projectId === projectId && d.currentSnapshotId === snapshotId
+    )
+    
+    if (!found) {
+      // diff를 찾지 못했으므로 홈으로 리다이렉트
+      console.warn('Diff를 찾을 수 없습니다:', { projectId, snapshotId })
+      router.push('/')
+      return
+    }
+  } else if (!diffResult.value) {
+    // 백엔드 미사용이고 diff가 없으면 홈으로
+    router.push('/')
+    return
+  }
+
+  initializeExpandedState()
 })
 
 // diffResult가 변경될 때마다 상태 초기화

@@ -2,6 +2,15 @@
 
 API 변경 사항 추적 시스템 - Swagger 문서의 변경을 자동으로 감지하고 비교합니다.
 
+## 🚀 빠른 시작
+
+PostgreSQL 설정 없이 바로 시작하려면:
+- **[QUICK_START.md](./QUICK_START.md)** - 5분 안에 시작하기
+- 데이터는 브라우저의 LocalStorage에 저장됩니다
+
+백엔드(PostgreSQL) 사용 시:
+- **[server/SETUP_GUIDE.md](./server/SETUP_GUIDE.md)** - 상세 설정 가이드
+
 ## 기능
 
 - ✅ Swagger/OpenAPI 문서 등록 및 관리
@@ -13,6 +22,7 @@ API 변경 사항 추적 시스템 - Swagger 문서의 변경을 자동으로 �
 
 ## 기술 스택
 
+### 프론트엔드
 - Vue 3 (Composition API)
 - TypeScript
 - Pinia (상태 관리)
@@ -23,19 +33,89 @@ API 변경 사항 추적 시스템 - Swagger 문서의 변경을 자동으로 �
 - Vitest (테스트 프레임워크)
 - @vue/test-utils (Vue 컴포넌트 테스트)
 
+### 백엔드
+- Express.js
+- TypeScript
+- Prisma ORM
+- PostgreSQL
+- Zod (유효성 검사)
+
 ## 시작하기
 
-### 설치
+### 프론트엔드
+
+#### 설치
 
 ```bash
 npm install
 ```
 
-### 개발 서버 실행
+#### 개발 서버 실행
 
 ```bash
 npm run dev
 ```
+
+### 백엔드
+
+⚠️ **중요:** PostgreSQL이 설치되어 실행 중이어야 합니다!
+
+**빠른 시작 (LocalStorage만 사용):**
+- 프론트엔드 설정(⚙️)에서 "백엔드 서버 주소"를 **비워두세요**
+- PostgreSQL 설정 불필요
+- [QUICK_START.md](./QUICK_START.md) 참고
+
+**백엔드 사용 시:**
+
+```bash
+cd server
+
+# PostgreSQL 설치 확인
+lsof -ti:5432  # PostgreSQL이 실행 중이어야 함
+
+npm install
+
+# .env 파일 생성 및 설정
+cp .env.example .env
+# DATABASE_URL을 PostgreSQL 연결 정보로 수정
+
+# 데이터베이스 생성
+createdb api_watcher
+
+# Prisma 설정
+npm run prisma:generate
+npm run prisma:migrate
+
+# 개발 서버 실행
+npm run dev
+```
+
+**500 에러 발생 시:**
+- [server/SETUP_GUIDE.md](./server/SETUP_GUIDE.md) - 상세한 설정 가이드
+- [server/README.md](./server/README.md) - API 문서
+
+### 프론트엔드와 백엔드 연동
+
+1. **백엔드 서버 실행**
+   ```bash
+   cd server
+   npm run dev
+   ```
+   서버는 기본적으로 `http://localhost:3001`에서 실행됩니다.
+
+2. **프론트엔드에서 API 설정**
+   - 프론트엔드 앱을 실행한 후, 우측 상단의 설정 아이콘을 클릭합니다.
+   - "API 기본 주소"에 `http://localhost:3001`을 입력합니다.
+   - (선택) API Key가 필요한 경우 설정합니다.
+   - 저장을 클릭하면 자동으로 백엔드와 연동됩니다.
+
+3. **LocalStorage 모드 (기본값)**
+   - API 기본 주소를 비워두면 LocalStorage를 사용합니다.
+   - 개발 모드에서는 자동으로 목 데이터가 로드됩니다.
+
+4. **백엔드 모드**
+   - API 기본 주소를 설정하면 모든 데이터가 백엔드 PostgreSQL에 저장됩니다.
+   - 프로젝트, 스냅샷, diff 결과가 서버에 저장됩니다.
 
 ### 빌드
 
@@ -72,20 +152,60 @@ npm run test:coverage
 ## 프로젝트 구조
 
 ```
-src/
-├── components/     # 재사용 가능한 컴포넌트
-├── views/         # 페이지 컴포넌트
-├── stores/        # Pinia 스토어
-│   └── __tests__/ # 스토어 테스트
-├── services/      # 비즈니스 로직 서비스
-│   └── __tests__/ # 서비스 테스트
-├── utils/         # 유틸리티 함수
-│   └── __tests__/ # 유틸리티 테스트
-├── types/         # TypeScript 타입 정의
-├── router/        # Vue Router 설정
-├── styles/        # 전역 스타일
-└── test/          # 테스트 설정 파일
+api-watcher/
+├── src/                    # 프론트엔드 소스 코드
+│   ├── components/         # 재사용 가능한 컴포넌트
+│   ├── views/             # 페이지 컴포넌트
+│   ├── stores/            # Pinia 스토어
+│   │   └── __tests__/     # 스토어 테스트
+│   ├── services/          # 비즈니스 로직 서비스
+│   │   └── __tests__/     # 서비스 테스트
+│   ├── utils/             # 유틸리티 함수
+│   │   └── __tests__/     # 유틸리티 테스트
+│   ├── types/             # TypeScript 타입 정의
+│   ├── router/            # Vue Router 설정
+│   ├── styles/            # 전역 스타일
+│   └── test/              # 테스트 설정 파일
+└── server/                 # 백엔드 소스 코드
+    ├── src/
+    │   ├── controllers/    # 컨트롤러
+    │   ├── routes/         # 라우터
+    │   ├── services/       # 비즈니스 로직 서비스
+    │   ├── middleware/     # 미들웨어
+    │   ├── types/          # TypeScript 타입
+    │   └── prisma/         # Prisma 클라이언트
+    └── prisma/
+        └── schema.prisma   # Prisma 스키마
 ```
+
+┌─────────────────────────────────────────┐
+│  프론트엔드 (Vue 앱)                    │
+│                                         │
+│  ┌──────────────────────────────────┐  │
+│  │ 설정: 백엔드 서버 주소            │  │
+│  │ http://localhost:3001            │  │
+│  └───────────┬──────────────────────┘  │
+│              │                          │
+│              ▼                          │
+│  ┌──────────────────────────────────┐  │
+│  │ 백엔드 서버 (Express + PostgreSQL)│  │
+│  │ - 프로젝트 데이터 저장            │  │
+│  │ - 스냅샷 저장                     │  │
+│  │ - Diff 결과 저장                  │  │
+│  └──────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│  프로젝트 1:                            │
+│  Swagger URL:                          │
+│  https://api.example.com/swagger.json  │
+│              │                          │
+│              ▼                          │
+│  ┌──────────────────────────────────┐  │
+│  │ 모니터링 대상 API                 │  │
+│  │ (외부 서비스)                     │  │
+│  └──────────────────────────────────┘  │
+└─────────────────────────────────────────┘
 
 ## 테스트
 
@@ -126,15 +246,23 @@ Tests  29 passed (29)
 
 ## 데이터 저장
 
-현재는 LocalStorage를 사용하여 데이터를 저장합니다. 프로덕션 환경에서는 백엔드 API와 연동하는 것을 권장합니다.
+### 로컬 개발 모드
+- LocalStorage를 사용하여 데이터를 저장합니다.
+- 개발 모드에서는 자동으로 목 데이터가 로드됩니다.
+
+### 프로덕션 모드
+- PostgreSQL 데이터베이스를 사용합니다.
+- 백엔드 API (`http://localhost:3001`)와 연동합니다.
+- 프론트엔드 설정에서 API Base URL을 설정하세요.
 
 ## 향후 계획
 
+- [x] 백엔드 API 연동 (Express + Prisma + PostgreSQL)
 - [ ] 스케줄링 기능 (매일 자동 체크)
 - [ ] Slack/Teams 웹훅 알림 연동
-- [ ] 백엔드 API 연동
 - [ ] 사용자 인증 및 권한 관리
 - [ ] 더 정교한 Breaking Change 감지 로직
+- [ ] API 문서 자동 생성
 
 ## 라이선스
 

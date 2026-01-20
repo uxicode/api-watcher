@@ -1,0 +1,17 @@
+{
+  "prisma.fileWatcher": true,
+  "prisma.formatOnSave": true,
+  "prisma.validateOnSave": true,
+  "files.associations": {
+    "*.prisma": "prisma"
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma",
+    "editor.formatOnSave": true,
+    "editor.quickSuggestions": {
+      "strings": true
+    }
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

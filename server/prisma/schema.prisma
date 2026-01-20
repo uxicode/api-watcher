@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id            String    @id @default(uuid())
+  name          String
+  swaggerUrl    String
+  apiKey        String?
+  apiKeyHeader  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastCheckedAt DateTime?
+  isActive      Boolean   @default(true)
+
+  snapshots  Snapshot[]
+  diffResults DiffResult[]
+  
+  @@map("projects")
+}
+
+model Snapshot {
+  id        String   @id @default(uuid())
+  projectId String
+  createdAt DateTime @default(now())
+  data      String   // 압축된 JSON 문자열
+  version   String
+
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  previousDiffs DiffResult[] @relation("PreviousSnapshot")
+  currentDiffs  DiffResult[] @relation("CurrentSnapshot")
+
+  @@index([projectId])
+  @@index([projectId, createdAt])
+  @@map("snapshots")
+}
+
+model DiffResult {
+  id                 String   @id @default(uuid())
+  projectId          String
+  previousSnapshotId String
+  currentSnapshotId  String
+  comparedAt         DateTime @default(now())
+  endpointDiffs      Json     // EndpointDiff[] 배열
+  summary            Json     // { added, removed, modified, breaking }
+
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  previousSnapshot  Snapshot  @relation("PreviousSnapshot", fields: [previousSnapshotId], references: [id], onDelete: Cascade)
+  currentSnapshot   Snapshot  @relation("CurrentSnapshot", fields: [currentSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([projectId, comparedAt])
+  @@map("diff_results")
+}

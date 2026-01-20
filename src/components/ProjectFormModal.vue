@@ -19,14 +19,26 @@
         </div>
 
         <div class="form-group">
-          <label for="swaggerUrl">Swagger URL</label>
+          <label for="swaggerUrl">모니터링할 Swagger 문서 URL (JSON)</label>
           <input
             id="swaggerUrl"
             v-model="form.swaggerUrl"
             type="url"
             required
-            placeholder="https://api.example.com/swagger.json"
+            placeholder="http://staging-api-admin.doctorvice.co.kr/v3/api-docs"
           />
+          <p class="help-text">
+            <strong>⚠️ 중요:</strong> Swagger UI 페이지(<code>/swagger-ui/index.html</code>) URL이 아닌 <strong>JSON 문서 URL</strong>을 입력하세요!<br>
+            <br>
+            <strong>일반적인 JSON 문서 경로:</strong><br>
+            • <code>/v3/api-docs</code> (OpenAPI 3.x 표준)<br>
+            • <code>/v2/api-docs</code> (Swagger 2.0)<br>
+            • <code>/swagger.json</code> 또는 <code>/openapi.json</code><br>
+            • <code>/api-docs</code><br>
+            <br>
+            <strong>예시:</strong> Swagger UI가 <code>http://example.com/swagger-ui/index.html</code>이면,<br>
+            JSON은 <code>http://example.com/v3/api-docs</code> 또는 <code>http://example.com/swagger-ui/api-docs</code>일 수 있습니다.
+          </p>
         </div>
 
         <div class="form-group">
@@ -200,6 +212,22 @@ function handleSubmit() {
 
   input[type="checkbox"] {
     margin-right: $spacing-sm;
+  }
+
+  .help-text {
+    margin-top: $spacing-xs;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+
+    code {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--color-primary);
+    }
   }
 }
 
