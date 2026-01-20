@@ -267,8 +267,8 @@ Tests  29 passed (29)
 - [ ] 스케줄링 기능 (매일 자동 체크)
 - [ ] Slack/Teams 웹훅 알림 연동
 - [ ] 사용자 인증 및 권한 관리
-- [ ] 더 정교한 Breaking Change 감지 로직
-- [ ] API 문서 자동 생성
+<!-- [ ] 더 정교한 Breaking Change 감지 로직 -->
+<!-- [ ] API 문서 자동 생성 -->
 
 ## 라이선스
 
