@@ -81,6 +81,7 @@ export const useProjectStore = defineStore('project', () => {
   const diffResults = ref<DiffResult[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const loadingProjects = ref<Set<string>>(new Set())
 
   const settingsStore = useSettingsStore()
   // apiBaseUrl이 설정되어 있는지 확인 (빈 문자열이 아닌 실제 값이 있는지)
@@ -350,6 +351,11 @@ export const useProjectStore = defineStore('project', () => {
     return (id: string) => projects.value.find(p => p.id === id)
   })
 
+  // 프로젝트별 로딩 상태 확인
+  const isProjectLoading = computed(() => {
+    return (projectId: string) => loadingProjects.value.has(projectId)
+  })
+
   // Swagger 수집 및 스냅샷 생성
   async function collectSwagger(projectId: string) {
     const project = projects.value.find(p => p.id === projectId)
@@ -357,31 +363,61 @@ export const useProjectStore = defineStore('project', () => {
       throw new Error('Project not found')
     }
 
-    isLoading.value = true
+    // 프로젝트별 로딩 상태 설정
+    loadingProjects.value.add(projectId)
     error.value = null
 
     try {
       if (useBackend.value) {
         // 백엔드 API 사용
         const response = await apiService.post<{
-          snapshot: ApiSnapshot
-          diffResult: ApiDiffResult | null
+          status: 'no_changes' | 'changes_detected'
+          message: string
+          snapshot?: ApiSnapshot
+          diffResult?: ApiDiffResult | null
+          lastSnapshot?: {
+            id: string
+            createdAt: string
+            version: string
+          }
+          lastCheckedAt?: string
         }>(`/api/projects/${projectId}/collect`)
 
-        const snapshot = convertApiSnapshot(response.snapshot)
-        snapshots.value.push(snapshot)
-
-        if (response.diffResult) {
-          const diffResult = convertApiDiffResult(response.diffResult)
-          diffResults.value.unshift(diffResult)
+        // ✅ 변경 없음 처리
+        if (response.status === 'no_changes') {
+          console.log(`[collectSwagger] No changes: ${response.message}`)
+          
+          // 프로젝트 정보 갱신 (lastCheckedAt 업데이트)
+          await loadProjectsFromBackend()
+          
+          // 기존 스냅샷 반환 (있다면)
+          if (response.lastSnapshot) {
+            const existingSnapshot = snapshots.value.find(s => s.id === response.lastSnapshot!.id)
+            return existingSnapshot || null
+          }
+          
+          return null
         }
 
-        // 프로젝트 정보 갱신
-        await loadProjectsFromBackend()
+        // ✅ 변경 감지됨 - 새 스냅샷 저장
+        if (response.snapshot) {
+          const snapshot = convertApiSnapshot(response.snapshot)
+          snapshots.value.push(snapshot)
 
-        return snapshot
+          if (response.diffResult) {
+            const diffResult = convertApiDiffResult(response.diffResult)
+            diffResults.value.unshift(diffResult)
+          }
+
+          // 프로젝트 정보 갱신
+          await loadProjectsFromBackend()
+
+          return snapshot
+        }
+
+        return null
       } else {
-        // LocalStorage 사용 (기존 로직)
+        // LocalStorage 사용
         const swagger = await swaggerService.fetchProjectSwagger(project)
         
         if (!swaggerService.validateSwagger(swagger)) {
@@ -389,6 +425,36 @@ export const useProjectStore = defineStore('project', () => {
         }
 
         const compressed = swaggerService.compressSwagger(swagger)
+
+        // ✅ 중복 저장 방지: 이전 스냅샷과 비교
+        const previousSnapshots = snapshots.value
+          .filter(s => s.projectId === projectId)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+        const previousSnapshot = previousSnapshots[0]
+
+        // ✅ 내용이 100% 동일하면 저장하지 않고 종료
+        if (previousSnapshot && previousSnapshot.data === compressed) {
+          console.log(`[collectSwagger] No changes detected for project ${projectId}`)
+          
+          // 프로젝트의 lastCheckedAt만 업데이트
+          const projectIndex = projects.value.findIndex(p => p.id === projectId)
+          if (projectIndex !== -1) {
+            projects.value[projectIndex] = {
+              ...projects.value[projectIndex],
+              lastCheckedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          }
+          
+          saveToStorage()
+          
+          return previousSnapshot // 기존 스냅샷 반환
+        }
+
+        // ✅ 내용이 다르면 새 스냅샷 저장
+        console.log(`[collectSwagger] Changes detected for project ${projectId}, creating new snapshot`)
+
         const snapshot: Snapshot = {
           id: crypto.randomUUID(),
           projectId,
@@ -399,10 +465,7 @@ export const useProjectStore = defineStore('project', () => {
 
         snapshots.value.push(snapshot)
 
-        // 이전 스냅샷과 비교
-        const previousSnapshots = snapshots.value
-          .filter(s => s.projectId === projectId && s.id !== snapshot.id)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        // 이전 스냅샷과 비교 (Diff 생성)
 
         if (previousSnapshots.length > 0) {
           const previousSnapshot = previousSnapshots[0]
@@ -429,7 +492,7 @@ export const useProjectStore = defineStore('project', () => {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       throw e
     } finally {
-      isLoading.value = false
+      loadingProjects.value.delete(projectId)
     }
   }
 
@@ -484,6 +547,8 @@ export const useProjectStore = defineStore('project', () => {
     diffResults,
     isLoading,
     error,
+    loadingProjects,
+    isProjectLoading,
     addProject,
     updateProject,
     deleteProject,

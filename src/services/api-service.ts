@@ -62,6 +62,18 @@ export class ApiService {
             const statusText = error.response.statusText
             const url = error.config?.url || '알 수 없는 URL'
             
+            // ✅ 백엔드에서 보내는 상세한 에러 메시지 추출
+            const backendErrorMessage = 
+              error.response.data?.error?.message || 
+              error.response.data?.message || 
+              null
+            
+            // ✅ 백엔드 에러 메시지가 있으면 우선 사용
+            if (backendErrorMessage) {
+              throw new Error(backendErrorMessage)
+            }
+            
+            // 404는 특별 처리
             if (status === 404) {
               throw new Error(
                 `API 엔드포인트를 찾을 수 없습니다: ${url}\n` +
@@ -69,6 +81,7 @@ export class ApiService {
               )
             }
             
+            // 기본 에러 메시지
             throw new Error(
               `API Error: ${status} - ${statusText}\n` +
               `요청 URL: ${error.config?.baseURL || ''}${url}`
@@ -154,6 +167,18 @@ export class ApiService {
             const statusText = error.response.statusText
             const url = error.config?.url || '알 수 없는 URL'
             
+            // ✅ 백엔드에서 보내는 상세한 에러 메시지 추출
+            const backendErrorMessage = 
+              error.response.data?.error?.message || 
+              error.response.data?.message || 
+              null
+            
+            // ✅ 백엔드 에러 메시지가 있으면 우선 사용
+            if (backendErrorMessage) {
+              throw new Error(backendErrorMessage)
+            }
+            
+            // 404는 특별 처리
             if (status === 404) {
               throw new Error(
                 `API 엔드포인트를 찾을 수 없습니다: ${url}\n` +
@@ -161,6 +186,7 @@ export class ApiService {
               )
             }
             
+            // 기본 에러 메시지
             throw new Error(
               `API Error: ${status} - ${statusText}\n` +
               `요청 URL: ${error.config?.baseURL || ''}${url}`

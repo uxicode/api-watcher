@@ -158,7 +158,38 @@ export async function collectSwagger(req: Request, res: Response, next: NextFunc
 
     const compressed = swaggerService.compressSwagger(swagger)
 
-    // 스냅샷 생성
+    // ✅ 중복 저장 방지: 이전 스냅샷과 비교
+    const previousSnapshot = await prisma.snapshot.findFirst({
+      where: { projectId: project.id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // ✅ 내용이 100% 동일하면 저장하지 않고 종료
+    if (previousSnapshot && previousSnapshot.data === compressed) {
+      // 마지막 체크 시간만 업데이트
+      const updatedProject = await prisma.project.update({
+        where: { id: project.id },
+        data: { lastCheckedAt: new Date() }
+      })
+
+      console.log(`[collectSwagger] No changes detected for project ${project.id}`)
+
+      res.status(200).json({
+        status: 'no_changes',
+        message: 'No changes detected since last check',
+        lastCheckedAt: updatedProject.lastCheckedAt,
+        lastSnapshot: {
+          id: previousSnapshot.id,
+          createdAt: previousSnapshot.createdAt,
+          version: previousSnapshot.version
+        }
+      })
+      return
+    }
+
+    // ✅ 내용이 다르면 새 스냅샷 저장
+    console.log(`[collectSwagger] Changes detected for project ${project.id}, creating new snapshot`)
+
     const snapshot = await prisma.snapshot.create({
       data: {
         projectId: project.id,
@@ -167,15 +198,7 @@ export async function collectSwagger(req: Request, res: Response, next: NextFunc
       }
     })
 
-    // 이전 스냅샷과 비교
-    const previousSnapshot = await prisma.snapshot.findFirst({
-      where: {
-        projectId: project.id,
-        id: { not: snapshot.id }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
-
+    // Diff 생성 (이전 스냅샷이 있는 경우)
     let diffResult = null
     if (previousSnapshot) {
       const previousSwagger = swaggerService.decompressSwagger(previousSnapshot.data)
@@ -206,6 +229,8 @@ export async function collectSwagger(req: Request, res: Response, next: NextFunc
     })
 
     res.status(201).json({
+      status: 'changes_detected',
+      message: 'New changes detected and saved',
       snapshot,
       diffResult
     })

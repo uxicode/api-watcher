@@ -2,7 +2,7 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>프로젝트 추가</h2>
+        <h2>{{ isEditMode ? '프로젝트 수정' : '프로젝트 추가' }}</h2>
         <button class="close-btn" @click="$emit('close')">×</button>
       </div>
 
@@ -78,7 +78,7 @@
             취소
           </button>
           <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-            {{ isSubmitting ? '추가 중...' : '추가' }}
+            {{ isSubmitting ? (isEditMode ? '저장 중...' : '추가 중...') : (isEditMode ? '저장' : '추가') }}
           </button>
         </div>
       </form>
@@ -87,13 +87,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import type { Project } from '@/types/project'
+
+interface Props {
+  project?: Project  // 수정 모드일 때 전달
+}
+
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
   submit: [project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>]
+  update: [id: string, updates: Partial<Project>]
 }>()
+
+// 수정 모드인지 확인
+const isEditMode = computed(() => !!props.project)
 
 const hasApiKey = ref(false)
 const isSubmitting = ref(false)
@@ -105,18 +115,41 @@ const form = reactive({
   apiKeyHeader: ''
 })
 
+// 수정 모드일 때 초기값 설정
+onMounted(() => {
+  if (props.project) {
+    form.name = props.project.name
+    form.swaggerUrl = props.project.swaggerUrl
+    form.apiKey = props.project.apiKey || ''
+    form.apiKeyHeader = props.project.apiKeyHeader || ''
+    hasApiKey.value = !!(props.project.apiKey || props.project.apiKeyHeader)
+  }
+})
+
 function handleSubmit() {
   isSubmitting.value = true
 
-  const project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: form.name,
-    swaggerUrl: form.swaggerUrl,
-    apiKey: hasApiKey.value ? form.apiKey : undefined,
-    apiKeyHeader: hasApiKey.value ? form.apiKeyHeader : undefined,
-    isActive: true
+  if (isEditMode.value && props.project) {
+    // 수정 모드
+    const updates: Partial<Project> = {
+      name: form.name,
+      swaggerUrl: form.swaggerUrl,
+      apiKey: hasApiKey.value ? form.apiKey : undefined,
+      apiKeyHeader: hasApiKey.value ? form.apiKeyHeader : undefined
+    }
+    emit('update', props.project.id, updates)
+  } else {
+    // 추가 모드
+    const project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+      name: form.name,
+      swaggerUrl: form.swaggerUrl,
+      apiKey: hasApiKey.value ? form.apiKey : undefined,
+      apiKeyHeader: hasApiKey.value ? form.apiKeyHeader : undefined,
+      isActive: true
+    }
+    emit('submit', project)
   }
-
-  emit('submit', project)
+  
   isSubmitting.value = false
 }
 </script>

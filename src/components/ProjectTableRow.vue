@@ -41,6 +41,13 @@
         >
           {{ isChecking ? '체크 중...' : '체크' }}
         </button>
+        <button
+          class="btn btn-sm btn-secondary"
+          @click="handleEditClick"
+          title="프로젝트 수정"
+        >
+          수정
+        </button>
         <router-link
           :to="`/projects/${project.id}`"
           class="btn btn-sm btn-secondary"
@@ -59,6 +66,13 @@
     </td>
 
     <Teleport to="body">
+      <ProjectFormModal
+        v-if="showEditModal"
+        :project="project"
+        @close="showEditModal = false"
+        @update="handleUpdate"
+      />
+      
       <ConfirmDialog
         v-if="showDeleteDialog"
         :message="`'${project.name}' 프로젝트를 삭제하시겠습니까?`"
@@ -81,6 +95,7 @@ import { ko } from 'date-fns/locale/ko'
 import type { Project } from '@/types/project'
 import { useProjectStore } from '@/stores/project-store'
 import ConfirmDialog from './ConfirmDialog.vue'
+import ProjectFormModal from './ProjectFormModal.vue'
 
 interface Props {
   project: Project
@@ -95,8 +110,9 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const store = useProjectStore()
-const isChecking = computed(() => store.isLoading)
+const isChecking = computed(() => store.isProjectLoading(props.project.id))
 const showDeleteDialog = ref(false)
+const showEditModal = ref(false)
 
 const latestDiff = computed(() => store.getLatestDiff(props.project.id))
 const latestSnapshot = computed(() => {
@@ -135,6 +151,20 @@ const lastCheckedText = computed(() => {
 
 function handleCheck() {
   emit('check', props.project.id)
+}
+
+function handleEditClick() {
+  showEditModal.value = true
+}
+
+async function handleUpdate(id: string, updates: Partial<Project>) {
+  try {
+    await store.updateProject(id, updates)
+    showEditModal.value = false
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    alert(`❌ 프로젝트 수정 실패\n\n${errorMessage}`)
+  }
 }
 
 function handleDeleteClick() {

@@ -28,10 +28,10 @@
         <button
           v-if="projects.length > 0"
           class="btn btn-secondary"
-          :disabled="isLoading"
+          :disabled="isCheckingAll"
           @click="checkAllProjects"
         >
-          {{ isLoading ? '체크 중...' : '전체 체크하기' }}
+          {{ isCheckingAll ? '전체 체크 중...' : '전체 체크하기' }}
         </button>
       </div>
 
@@ -85,7 +85,7 @@ import SettingsModal from '@/components/SettingsModal.vue'
 const store = useProjectStore()
 const settingsStore = useSettingsStore()
 const projects = computed(() => store.projects.filter(p => p.isActive))
-const isLoading = computed(() => store.isLoading)
+const isCheckingAll = ref(false)
 const showSettings = ref(false)
 const isDev = import.meta.env.DEV
 
@@ -175,17 +175,30 @@ watch(
 )
 
 async function checkAllProjects() {
-  for (const project of projects.value) {
-    try {
-      await store.collectSwagger(project.id)
-    } catch (error) {
-      console.error(`Failed to check project ${project.name}:`, error)
+  isCheckingAll.value = true
+  try {
+    for (const project of projects.value) {
+      try {
+        await store.collectSwagger(project.id)
+      } catch (error) {
+        console.error(`Failed to check project ${project.name}:`, error)
+      }
     }
+  } finally {
+    isCheckingAll.value = false
   }
 }
 
-function handleCheck(projectId: string) {
-  store.collectSwagger(projectId)
+async function handleCheck(projectId: string) {
+  try {
+    await store.collectSwagger(projectId)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error(`[handleCheck] 프로젝트 체크 실패:`, error)
+    
+    // 사용자에게 친절한 에러 메시지 표시
+    alert(`❌ Swagger 문서 체크 실패\n\n${errorMessage}`)
+  }
 }
 
 function handleDeleted(_projectId: string) {
