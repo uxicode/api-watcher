@@ -763,7 +763,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: $spacing-md $spacing-lg;
+  padding: $spacing-sm $spacing-lg;
   background: var(--bg-secondary);
   cursor: pointer;
   user-select: none;

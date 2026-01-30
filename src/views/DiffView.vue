@@ -40,71 +40,330 @@
       </div>
 
       <div class="diff-content">
-        <div
-          v-for="(endpointDiff, index) in diffResult.endpointDiffs"
-          :key="`${endpointDiff.method}-${endpointDiff.path}`"
-          class="endpoint-diff"
-          :class="{ 'is-expanded': expandedEndpoints[index] }"
-        >
-          <div
-            class="endpoint-header"
-            @click="toggleEndpoint(index)"
-          >
-            <div class="header-left">
-              <span class="toggle-icon" :class="{ 'is-expanded': expandedEndpoints[index] }">
-                ▼
-              </span>
-              <span class="method" :class="`method-${endpointDiff.method.toLowerCase()}`">
-                {{ endpointDiff.method.toUpperCase() }}
-              </span>
-              <span class="path">{{ endpointDiff.path }}</span>
-            </div>
-            <div class="header-right">
-              <span v-if="endpointDiff.isBreaking" class="breaking-badge">Breaking</span>
-              <span class="change-count">{{ endpointDiff.changes.length }}개 변경</span>
-            </div>
+        <!-- Breaking Change 그룹 -->
+        <div v-if="groupedDiffs.breaking.length > 0" class="diff-group">
+          <div class="group-header breaking-header">
+            <h2>⚠️ Breaking Changes</h2>
+            <span class="group-count">{{ groupedDiffs.breaking.length }}개</span>
           </div>
-
           <div
-            v-show="expandedEndpoints[index]"
-            class="changes-list"
+            v-for="endpointDiff in groupedDiffs.breaking"
+            :key="`breaking-${endpointDiff.method}-${endpointDiff.path}`"
+            class="endpoint-diff"
+            :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }"
           >
             <div
-              v-for="(change, index) in endpointDiff.changes"
-              :key="index"
-              class="change-item"
-              :class="`change-${change.type}`"
+              class="endpoint-header"
+              @click="toggleEndpoint(getEndpointIndex(endpointDiff))"
             >
-              <div class="change-header">
-                <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
-                <span class="change-path">{{ change.path }}</span>
-              </div>
-              <div class="change-description">{{ change.description }}</div>
-              <div v-if="change.oldValue" class="change-value old-value">
-                <div class="value-label">이전 값:</div>
-                <pre>{{ formatValue(change.oldValue) }}</pre>
-              </div>
-              <div v-if="change.newValue" class="change-value new-value">
-                <div class="value-label">새 값:</div>
-                <pre>{{ formatValue(change.newValue) }}</pre>
-              </div>
-
-              <!-- TypeScript 타입 표시 (삭제 제외, 모든 변경사항) -->
-              <div
-                v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
-                class="typescript-type"
-              >
-                <div class="type-header">
-                  <span class="type-label">TypeScript 타입:</span>
-                  <button
-                    class="btn-copy"
-                    @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
-                    title="클립보드에 복사"
+              <div class="header-left">
+                <span class="toggle-icon" :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }">
+                  ▼
+                </span>
+                <span class="method" :class="`method-${endpointDiff.method.toLowerCase()}`">
+                  {{ endpointDiff.method.toUpperCase() }}
+                </span>
+                <span class="path">{{ endpointDiff.path }} </span>
+                <div v-if="endpointDiff.tags && endpointDiff.tags.length > 0" class="endpoint-tags">
+                  <span
+                    v-for="tag in endpointDiff.tags"
+                    :key="tag"
+                    class="tag-badge"
                   >
-                    📋 복사
-                  </button>
+                    {{ tag }}
+                  </span>
                 </div>
-                <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
+              </div>
+              <div class="header-right">
+                <span class="breaking-badge">Breaking</span>
+                <span class="change-count">{{ endpointDiff.changes.length }}개 변경</span>
+              </div>
+            </div>
+            <div
+              v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
+              class="changes-list"
+            >
+              <div
+                v-for="(change, changeIndex) in endpointDiff.changes"
+                :key="changeIndex"
+                class="change-item"
+                :class="`change-${change.type}`"
+              >
+                <div class="change-header">
+                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
+                  <span class="change-path">{{ change.path }}</span>
+                </div>
+                <div class="change-description">{{ change.description }}</div>
+                <div v-if="change.oldValue" class="change-value old-value">
+                  <div class="value-label">이전 값:</div>
+                  <pre>{{ formatValue(change.oldValue) }}</pre>
+                </div>
+                <div v-if="change.newValue" class="change-value new-value">
+                  <div class="value-label">새 값:</div>
+                  <pre>{{ formatValue(change.newValue) }}</pre>
+                </div>
+                <div
+                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
+                  class="typescript-type"
+                >
+                  <div class="type-header">
+                    <span class="type-label">TypeScript 타입:</span>
+                    <button
+                      class="btn-copy"
+                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
+                      title="클립보드에 복사"
+                    >
+                      📋 복사
+                    </button>
+                  </div>
+                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 추가 그룹 -->
+        <div v-if="groupedDiffs.added.length > 0" class="diff-group">
+          <div class="group-header added-header">
+            <h2>➕ 추가된 API</h2>
+            <span class="group-count">{{ groupedDiffs.added.length }}개</span>
+          </div>
+          <div
+            v-for="endpointDiff in groupedDiffs.added"
+            :key="`added-${endpointDiff.method}-${endpointDiff.path}`"
+            class="endpoint-diff"
+            :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }"
+          >
+            <div
+              class="endpoint-header"
+              @click="toggleEndpoint(getEndpointIndex(endpointDiff))"
+            >
+              <div class="header-left">
+                <span class="toggle-icon" :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }">
+                  ▼
+                </span>
+                <span class="method" :class="`method-${endpointDiff.method.toLowerCase()}`">
+                  {{ endpointDiff.method.toUpperCase() }}
+                </span>
+                <span class="path">{{ endpointDiff.path }}</span>
+                <div v-if="endpointDiff.tags && endpointDiff.tags.length > 0" class="endpoint-tags">
+                  <span
+                    v-for="tag in endpointDiff.tags"
+                    :key="tag"
+                    class="tag-badge"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+              <div class="header-right">
+                <span class="change-count">{{ endpointDiff.changes.length }}개 변경</span>
+              </div>
+            </div>
+            <div
+              v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
+              class="changes-list"
+            >
+              <div
+                v-for="(change, changeIndex) in endpointDiff.changes"
+                :key="changeIndex"
+                class="change-item"
+                :class="`change-${change.type}`"
+              >
+                <div class="change-header">
+                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
+                  <span class="change-path">{{ change.path }}</span>
+                </div>
+                <div class="change-description">{{ change.description }}</div>
+                <div v-if="change.oldValue" class="change-value old-value">
+                  <div class="value-label">이전 값:</div>
+                  <pre>{{ formatValue(change.oldValue) }}</pre>
+                </div>
+                <div v-if="change.newValue" class="change-value new-value">
+                  <div class="value-label">새 값:</div>
+                  <pre>{{ formatValue(change.newValue) }}</pre>
+                </div>
+                <div
+                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
+                  class="typescript-type"
+                >
+                  <div class="type-header">
+                    <span class="type-label">TypeScript 타입:</span>
+                    <button
+                      class="btn-copy"
+                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
+                      title="클립보드에 복사"
+                    >
+                      📋 복사
+                    </button>
+                  </div>
+                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 삭제 그룹 -->
+        <div v-if="groupedDiffs.removed.length > 0" class="diff-group">
+          <div class="group-header removed-header">
+            <h2>➖ 삭제된 API</h2>
+            <span class="group-count">{{ groupedDiffs.removed.length }}개</span>
+          </div>
+          <div
+            v-for="endpointDiff in groupedDiffs.removed"
+            :key="`removed-${endpointDiff.method}-${endpointDiff.path}`"
+            class="endpoint-diff"
+            :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }"
+          >
+            <div
+              class="endpoint-header"
+              @click="toggleEndpoint(getEndpointIndex(endpointDiff))"
+            >
+              <div class="header-left">
+                <span class="toggle-icon" :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }">
+                  ▼
+                </span>
+                <span class="method" :class="`method-${endpointDiff.method.toLowerCase()}`">
+                  {{ endpointDiff.method.toUpperCase() }}
+                </span>
+                <span class="path">{{ endpointDiff.path }}</span>
+                <div v-if="endpointDiff.tags && endpointDiff.tags.length > 0" class="endpoint-tags">
+                  <span
+                    v-for="tag in endpointDiff.tags"
+                    :key="tag"
+                    class="tag-badge"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+              <div class="header-right">
+                <span class="change-count">{{ endpointDiff.changes.length }}개 변경</span>
+              </div>
+            </div>
+            <div
+              v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
+              class="changes-list"
+            >
+              <div
+                v-for="(change, changeIndex) in endpointDiff.changes"
+                :key="changeIndex"
+                class="change-item"
+                :class="`change-${change.type}`"
+              >
+                <div class="change-header">
+                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
+                  <span class="change-path">{{ change.path }}</span>
+                </div>
+                <div class="change-description">{{ change.description }}</div>
+                <div v-if="change.oldValue" class="change-value old-value">
+                  <div class="value-label">이전 값:</div>
+                  <pre>{{ formatValue(change.oldValue) }}</pre>
+                </div>
+                <div v-if="change.newValue" class="change-value new-value">
+                  <div class="value-label">새 값:</div>
+                  <pre>{{ formatValue(change.newValue) }}</pre>
+                </div>
+                <div
+                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
+                  class="typescript-type"
+                >
+                  <div class="type-header">
+                    <span class="type-label">TypeScript 타입:</span>
+                    <button
+                      class="btn-copy"
+                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
+                      title="클립보드에 복사"
+                    >
+                      📋 복사
+                    </button>
+                  </div>
+                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 수정 그룹 -->
+        <div v-if="groupedDiffs.modified.length > 0" class="diff-group">
+          <div class="group-header modified-header">
+            <h2>✏️ 수정된 API</h2>
+            <span class="group-count">{{ groupedDiffs.modified.length }}개</span>
+          </div>
+          <div
+            v-for="endpointDiff in groupedDiffs.modified"
+            :key="`modified-${endpointDiff.method}-${endpointDiff.path}`"
+            class="endpoint-diff"
+            :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }"
+          >
+            <div
+              class="endpoint-header"
+              @click="toggleEndpoint(getEndpointIndex(endpointDiff))"
+            >
+              <div class="header-left">
+                <span class="toggle-icon" :class="{ 'is-expanded': expandedEndpoints[getEndpointIndex(endpointDiff)] }">
+                  ▼
+                </span>
+                <span class="method" :class="`method-${endpointDiff.method.toLowerCase()}`">
+                  {{ endpointDiff.method.toUpperCase() }}
+                </span>
+                <span class="path">{{ endpointDiff.path }}</span>
+                <div v-if="endpointDiff.tags && endpointDiff.tags.length > 0" class="endpoint-tags">
+                  <span
+                    v-for="tag in endpointDiff.tags"
+                    :key="tag"
+                    class="tag-badge"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+              </div>
+              <div class="header-right">
+                <span class="change-count">{{ endpointDiff.changes.length }}개 변경</span>
+              </div>
+            </div>
+            <div
+              v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
+              class="changes-list"
+            >
+              <div
+                v-for="(change, changeIndex) in endpointDiff.changes"
+                :key="changeIndex"
+                class="change-item"
+                :class="`change-${change.type}`"
+              >
+                <div class="change-header">
+                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
+                  <span class="change-path">{{ change.path }}</span>
+                </div>
+                <div class="change-description">{{ change.description }}</div>
+                <div v-if="change.oldValue" class="change-value old-value">
+                  <div class="value-label">이전 값:</div>
+                  <pre>{{ formatValue(change.oldValue) }}</pre>
+                </div>
+                <div v-if="change.newValue" class="change-value new-value">
+                  <div class="value-label">새 값:</div>
+                  <pre>{{ formatValue(change.newValue) }}</pre>
+                </div>
+                <div
+                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
+                  class="typescript-type"
+                >
+                  <div class="type-header">
+                    <span class="type-label">TypeScript 타입:</span>
+                    <button
+                      class="btn-copy"
+                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
+                      title="클립보드에 복사"
+                    >
+                      📋 복사
+                    </button>
+                  </div>
+                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
+                </div>
               </div>
             </div>
           </div>
@@ -139,6 +398,69 @@ const diffResult = computed(() => {
   )
 })
 
+// 현재 스냅샷에서 Swagger 데이터 가져오기
+const currentSnapshot = computed(() => {
+  if (!diffResult.value) return null
+  return store.snapshots.find(s => s.id === diffResult.value!.currentSnapshotId)
+})
+
+// 각 endpointDiff에 tags 정보 추가
+const endpointDiffsWithTags = computed(() => {
+  if (!diffResult.value || !currentSnapshot.value) {
+    return diffResult.value?.endpointDiffs || []
+  }
+
+  try {
+    const swaggerData = JSON.parse(currentSnapshot.value.data)
+    const swaggerPaths = swaggerData.paths || {}
+
+    return diffResult.value.endpointDiffs.map(endpointDiff => {
+      // 현재 스냅샷에서 해당 엔드포인트의 tags 추출
+      const pathData = swaggerPaths[endpointDiff.path]
+      if (pathData && pathData[endpointDiff.method.toLowerCase()]) {
+        const operation = pathData[endpointDiff.method.toLowerCase()]
+        const tags = operation?.tags && Array.isArray(operation.tags) && operation.tags.length > 0
+          ? operation.tags.filter((tag: unknown): tag is string => typeof tag === 'string')
+          : undefined
+
+        return {
+          ...endpointDiff,
+          tags
+        }
+      }
+
+      // 이전 스냅샷에서 tags 추출 시도 (현재 스냅샷에 없는 경우)
+      const previousSnapshot = store.snapshots.find(s => s.id === diffResult.value!.previousSnapshotId)
+      if (previousSnapshot) {
+        try {
+          const prevSwaggerData = JSON.parse(previousSnapshot.data)
+          const prevPathData = prevSwaggerData.paths?.[endpointDiff.path]
+          if (prevPathData && prevPathData[endpointDiff.method.toLowerCase()]) {
+            const prevOperation = prevPathData[endpointDiff.method.toLowerCase()]
+            const tags = prevOperation?.tags && Array.isArray(prevOperation.tags) && prevOperation.tags.length > 0
+              ? prevOperation.tags.filter((tag: unknown): tag is string => typeof tag === 'string')
+              : undefined
+
+            if (tags) {
+              return {
+                ...endpointDiff,
+                tags
+              }
+            }
+          }
+        } catch {
+          // 이전 스냅샷 파싱 실패 시 무시
+        }
+      }
+
+      return endpointDiff
+    })
+  } catch (error) {
+    console.error('Failed to parse swagger data for tags:', error)
+    return diffResult.value.endpointDiffs
+  }
+})
+
 // 각 endpoint의 확장 상태 관리
 const expandedEndpoints = ref<boolean[]>([])
 
@@ -149,9 +471,57 @@ function toggleEndpoint(index: number) {
 
 // diffResult가 변경될 때 모든 endpoint를 기본적으로 접힌 상태로 설정
 function initializeExpandedState() {
-  if (diffResult.value) {
-    expandedEndpoints.value = new Array(diffResult.value.endpointDiffs.length).fill(false)
+  expandedEndpoints.value = new Array(endpointDiffsWithTags.value.length).fill(false)
+}
+
+// 카테고리별로 그룹화 (tags 포함된 endpointDiffs 사용)
+const groupedDiffs = computed(() => {
+  const diffs = endpointDiffsWithTags.value
+  
+  if (diffs.length === 0) {
+    return {
+      breaking: [],
+      added: [],
+      removed: [],
+      modified: []
+    }
   }
+
+  const breaking: EndpointDiff[] = []
+  const added: EndpointDiff[] = []
+  const removed: EndpointDiff[] = []
+  const modified: EndpointDiff[] = []
+
+  for (const endpointDiff of diffs) {
+    // Breaking Change는 최우선
+    if (endpointDiff.isBreaking) {
+      breaking.push(endpointDiff)
+      continue
+    }
+
+    // changes 타입 확인
+    const hasRemoved = endpointDiff.changes.some(c => c.type === DIFF_TYPE.REMOVED)
+    const hasAdded = endpointDiff.changes.some(c => c.type === DIFF_TYPE.ADDED)
+    const hasModified = endpointDiff.changes.some(c => c.type === DIFF_TYPE.MODIFIED)
+
+    // 우선순위: REMOVED > ADDED > MODIFIED
+    if (hasRemoved) {
+      removed.push(endpointDiff)
+    } else if (hasAdded) {
+      added.push(endpointDiff)
+    } else if (hasModified) {
+      modified.push(endpointDiff)
+    }
+  }
+
+  return { breaking, added, removed, modified }
+})
+
+// endpointDiff의 원본 인덱스 찾기 (endpointDiffsWithTags 기준)
+function getEndpointIndex(endpointDiff: EndpointDiff): number {
+  return endpointDiffsWithTags.value.findIndex(
+    d => d.method === endpointDiff.method && d.path === endpointDiff.path
+  )
 }
 
 const changeTypeLabel = {
@@ -174,14 +544,14 @@ function getTypeScriptType(change: DiffChange, endpointDiff: EndpointDiff): stri
   }
 
   // 디버깅: change 객체 구조 확인
-  if (import.meta.env.DEV) {
-    console.log('getTypeScriptType:', {
-      path: change.path,
-      type: change.type,
-      hasNewValue: !!change.newValue,
-      newValueKeys: change.newValue ? Object.keys(change.newValue as object) : []
-    })
-  }
+  // if (import.meta.env.DEV) {
+  //   console.log('getTypeScriptType:', {
+  //     path: change.path,
+  //     type: change.type,
+  //     hasNewValue: !!change.newValue,
+  //     newValueKeys: change.newValue ? Object.keys(change.newValue as object) : []
+  //   })
+  // }
 
   try {
     // Response 변경사항 처리 (path 형식: "GET /pets/responses/200")
@@ -470,8 +840,84 @@ watch(() => diffResult.value, () => {
   margin: 0 auto;
 }
 
+.diff-group {
+  margin-bottom: $spacing-2xl;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-lg;
+  border-radius: $radius-md;
+  font-weight: 600;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .group-count {
+    font-size: 0.875rem;
+    padding: $spacing-xs $spacing-md;
+    border-radius: $radius-full;
+    background: var(--bg-tertiary);
+  }
+
+  &.breaking-header {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #dc2626;
+
+    .group-count {
+      background: #fecaca;
+      color: #991b1b;
+    }
+  }
+
+  &.added-header {
+    background: #d1fae5;
+    color: #065f46;
+    border-left: 4px solid #10b981;
+
+    .group-count {
+      background: #a7f3d0;
+      color: #065f46;
+    }
+  }
+
+  &.removed-header {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #ef4444;
+
+    .group-count {
+      background: #fecaca;
+      color: #991b1b;
+    }
+  }
+
+  &.modified-header {
+    background: #fef3c7;
+    color: #92400e;
+    border-left: 4px solid #f59e0b;
+
+    .group-count {
+      background: #fde68a;
+      color: #92400e;
+    }
+  }
+}
+
 .endpoint-diff {
   @include card;
+  padding: 0;
   margin-bottom: $spacing-lg;
   transition: all 0.2s;
 
@@ -489,9 +935,9 @@ watch(() => diffResult.value, () => {
   align-items: center;
   justify-content: space-between;
   gap: $spacing-md;
+  width: 100%;
   cursor: pointer;
   padding: $spacing-md;
-  margin: -$spacing-lg;
   margin-bottom: 0;
   border-radius: $radius-lg $radius-lg 0 0;
   transition: background-color 0.2s;
@@ -506,6 +952,23 @@ watch(() => diffResult.value, () => {
     gap: $spacing-md;
     flex: 1;
     min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .endpoint-tags {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    flex-wrap: wrap;
+  }
+
+  .tag-badge {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    background: var(--bg-tertiary);
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $radius-sm;
+    white-space: nowrap;
   }
 
   .header-right {

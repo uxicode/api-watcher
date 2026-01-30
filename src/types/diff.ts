@@ -20,6 +20,7 @@ export interface EndpointDiff {
   method: string
   changes: DiffChange[]
   isBreaking: boolean
+  tags?: string[]
 }
 
 export interface DiffResult {

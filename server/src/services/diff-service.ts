@@ -83,6 +83,10 @@ export class DiffService {
     const methods = Object.keys(currPath)
 
     for (const method of methods) {
+      const operation = currPath[method]
+      // tags 추출: SwaggerOperation의 tags 배열
+      const tags = this.extractTags(operation)
+      
       diffs.push(this.createEndpointDiff(
         path,
         method,
@@ -92,7 +96,8 @@ export class DiffService {
           newValue: currPath[method],
           description: `신규 API 추가: ${method.toUpperCase()} ${path}`
         }],
-        false
+        false,
+        tags
       ))
     }
 
@@ -107,6 +112,10 @@ export class DiffService {
     const methods = Object.keys(prevPath)
 
     for (const method of methods) {
+      const operation = prevPath[method]
+      // tags 추출: SwaggerOperation의 tags 배열
+      const tags = this.extractTags(operation)
+      
       diffs.push(this.createEndpointDiff(
         path,
         method,
@@ -116,7 +125,8 @@ export class DiffService {
           oldValue: prevPath[method],
           description: `API 삭제: ${method.toUpperCase()} ${path}`
         }],
-        true // 삭제는 항상 Breaking Change
+        true, // 삭제는 항상 Breaking Change
+        tags
       ))
     }
 
@@ -164,6 +174,8 @@ export class DiffService {
   ): EndpointDiff | null {
     // 메서드가 새로 추가됨
     if (!prevMethod && currMethod) {
+      const tags = this.extractTags(currMethod)
+      
       return this.createEndpointDiff(
         path,
         method,
@@ -173,12 +185,15 @@ export class DiffService {
           newValue: currMethod,
           description: `신규 메서드 추가: ${method.toUpperCase()} ${path}`
         }],
-        false
+        false,
+        tags
       )
     }
 
     // 메서드가 삭제됨
     if (prevMethod && !currMethod) {
+      const tags = this.extractTags(prevMethod)
+      
       return this.createEndpointDiff(
         path,
         method,
@@ -188,26 +203,64 @@ export class DiffService {
           oldValue: prevMethod,
           description: `메서드 삭제: ${method.toUpperCase()} ${path}`
         }],
-        true // 삭제는 항상 Breaking Change
+        true, // 삭제는 항상 Breaking Change
+        tags
       )
     }
 
     // 메서드가 수정됨 (상세 비교)
     if (prevMethod && currMethod) {
+      const prevOperation = prevMethod as SwaggerOperation
+      const currOperation = currMethod as SwaggerOperation
       const changes = this.compareEndpoint(
-        prevMethod as SwaggerOperation,
-        currMethod as SwaggerOperation,
+        prevOperation,
+        currOperation,
         path,
         method
       )
 
       if (changes.length > 0) {
         const isBreaking = this.detectBreakingChange(changes)
-        return this.createEndpointDiff(path, method, changes, isBreaking)
+        
+        // tags 추출: 현재 버전 우선, 없으면 이전 버전 사용
+        const tags = this.extractTags(currMethod) || this.extractTags(prevMethod)
+        
+        return this.createEndpointDiff(path, method, changes, isBreaking, tags)
       }
     }
 
     return null
+  }
+
+  /**
+   * SwaggerOperation에서 tags 추출
+   */
+  private extractTags(operation: unknown): string[] | undefined {
+    if (!operation || typeof operation !== 'object') {
+      return undefined
+    }
+
+    const op = operation as SwaggerOperation
+    
+    // 디버깅: tags 추출 확인 (개발 환경에서만)
+    if (process.env.NODE_ENV !== 'production' && 'tags' in op) {
+      console.log('[extractTags] operation:', {
+        hasTags: 'tags' in op,
+        tags: op.tags,
+        tagsType: typeof op.tags,
+        isArray: Array.isArray(op.tags),
+        operationKeys: Object.keys(op)
+      })
+    }
+    
+    if (op.tags && Array.isArray(op.tags) && op.tags.length > 0) {
+      const validTags = op.tags.filter((tag): tag is string => typeof tag === 'string')
+      if (validTags.length > 0) {
+        return validTags
+      }
+    }
+
+    return undefined
   }
 
   /**
@@ -217,13 +270,15 @@ export class DiffService {
     path: string,
     method: string,
     changes: DiffChange[],
-    isBreaking: boolean
+    isBreaking: boolean,
+    tags?: string[]
   ): EndpointDiff {
     return {
       path,
       method,
       changes,
-      isBreaking
+      isBreaking,
+      tags
     }
   }
 
