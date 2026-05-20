@@ -3,10 +3,18 @@ import prisma from '../prisma/client.js'
 import { ApiError } from '../middleware/errorHandler.js'
 import { diffService } from '../services/diff-service.js'
 import { swaggerService } from '../services/swagger-service.js'
+import type { AuthRequest } from '../middleware/auth.js'
 
-export async function getProjects(req: Request, res: Response, next: NextFunction) {
+export async function getProjects(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const projects = await prisma.project.findMany({
+      where: { userId: req.user.userId },
       orderBy: { updatedAt: 'desc' },
       include: {
         snapshots: {
@@ -26,8 +34,14 @@ export async function getProjects(req: Request, res: Response, next: NextFunctio
   }
 }
 
-export async function getProject(req: Request, res: Response, next: NextFunction) {
+export async function getProject(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const { id } = req.params
 
     const project = await prisma.project.findUnique({
@@ -49,14 +63,27 @@ export async function getProject(req: Request, res: Response, next: NextFunction
       throw error
     }
 
+    // 사용자 소유 확인
+    if (project.userId !== req.user.userId) {
+      const error: ApiError = new Error('권한이 없습니다')
+      error.statusCode = 403
+      throw error
+    }
+
     res.json(project)
   } catch (error) {
     next(error)
   }
 }
 
-export async function createProject(req: Request, res: Response, next: NextFunction) {
+export async function createProject(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const { name, swaggerUrl, apiKey, apiKeyHeader, isActive } = req.body
 
     if (!name || !swaggerUrl) {
@@ -71,6 +98,7 @@ export async function createProject(req: Request, res: Response, next: NextFunct
         swaggerUrl,
         apiKey,
         apiKeyHeader,
+        userId: req.user.userId,
         isActive: isActive ?? true
       }
     })
@@ -81,10 +109,33 @@ export async function createProject(req: Request, res: Response, next: NextFunct
   }
 }
 
-export async function updateProject(req: Request, res: Response, next: NextFunction) {
+export async function updateProject(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const { id } = req.params
     const { name, swaggerUrl, apiKey, apiKeyHeader, isActive } = req.body
+
+    // 프로젝트 소유 확인
+    const existingProject = await prisma.project.findUnique({
+      where: { id }
+    })
+
+    if (!existingProject) {
+      const error: ApiError = new Error('Project not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    if (existingProject.userId !== req.user.userId) {
+      const error: ApiError = new Error('권한이 없습니다')
+      error.statusCode = 403
+      throw error
+    }
 
     const project = await prisma.project.update({
       where: { id },
@@ -108,9 +159,32 @@ export async function updateProject(req: Request, res: Response, next: NextFunct
   }
 }
 
-export async function deleteProject(req: Request, res: Response, next: NextFunction) {
+export async function deleteProject(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const { id } = req.params
+
+    // 프로젝트 소유 확인
+    const existingProject = await prisma.project.findUnique({
+      where: { id }
+    })
+
+    if (!existingProject) {
+      const error: ApiError = new Error('Project not found')
+      error.statusCode = 404
+      throw error
+    }
+
+    if (existingProject.userId !== req.user.userId) {
+      const error: ApiError = new Error('권한이 없습니다')
+      error.statusCode = 403
+      throw error
+    }
 
     await prisma.project.delete({
       where: { id }
@@ -127,8 +201,14 @@ export async function deleteProject(req: Request, res: Response, next: NextFunct
   }
 }
 
-export async function collectSwagger(req: Request, res: Response, next: NextFunction) {
+export async function collectSwagger(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    if (!req.user) {
+      const error: ApiError = new Error('인증이 필요합니다')
+      error.statusCode = 401
+      throw error
+    }
+
     const { id } = req.params
 
     const project = await prisma.project.findUnique({
@@ -138,6 +218,13 @@ export async function collectSwagger(req: Request, res: Response, next: NextFunc
     if (!project) {
       const error: ApiError = new Error('Project not found')
       error.statusCode = 404
+      throw error
+    }
+
+    // 사용자 소유 확인
+    if (project.userId !== req.user.userId) {
+      const error: ApiError = new Error('권한이 없습니다')
+      error.statusCode = 403
       throw error
     }
 

@@ -7,6 +7,9 @@
 
     <div class="dashboard-content">
       <div class="actions-bar">
+        <div class="user-info" v-if="authStore.isAuthenticated">
+          <span class="user-name">{{ authStore.user?.name || authStore.user?.email }}</span>
+        </div>
         <button
           class="btn btn-icon"
           title="설정"
@@ -33,6 +36,20 @@
         >
           {{ isCheckingAll ? '전체 체크 중...' : '전체 체크하기' }}
         </button>
+        <button
+          v-if="authStore.isAuthenticated"
+          class="btn btn-secondary"
+          @click="handleLogout"
+        >
+          로그아웃
+        </button>
+        <router-link
+          v-else
+          to="/login"
+          class="btn btn-secondary"
+        >
+          로그인
+        </router-link>
       </div>
 
       <SettingsModal
@@ -77,17 +94,26 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project-store'
 import { useSettingsStore } from '@/stores/settings-store'
+import { useAuthStore } from '@/stores/auth-store'
 import ProjectTableRow from '@/components/ProjectTableRow.vue'
 import SettingsModal from '@/components/SettingsModal.vue'
 
+const router = useRouter()
 const store = useProjectStore()
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 const projects = computed(() => store.projects.filter(p => p.isActive))
 const isCheckingAll = ref(false)
 const showSettings = ref(false)
 const isDev = import.meta.env.DEV
+
+async function handleLogout() {
+  await authStore.logout()
+  router.push('/login')
+}
 
 // 설정 변경 감지하여 프로젝트 자동 로드
 async function loadProjectsIfNeeded() {
@@ -282,9 +308,26 @@ onMounted(async () => {
   gap: $spacing-md;
   margin-bottom: $spacing-xl;
   justify-content: flex-end;
+  align-items: center;
+
+  .user-info {
+    margin-right: auto;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+
+    .user-name {
+      font-weight: 500;
+    }
+  }
 
   @include mobile {
     flex-direction: column;
+    align-items: stretch;
+
+    .user-info {
+      margin-right: 0;
+      margin-bottom: $spacing-sm;
+    }
   }
 }
 

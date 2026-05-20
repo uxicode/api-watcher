@@ -10,19 +10,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?
+  provider      String    @default("email") // 'email' | 'github' | 'google'
+  providerId    String?   // 소셜 로그인 제공자의 사용자 ID
+  name          String?
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  projects      Project[]
+  
+  @@unique([provider, providerId])
+  @@map("users")
+}
+
 model Project {
   id            String    @id @default(uuid())
   name          String
   swaggerUrl    String
   apiKey        String?
   apiKeyHeader  String?
+  userId        String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastCheckedAt DateTime?
   isActive      Boolean   @default(true)
 
-  snapshots  Snapshot[]
-  diffResults DiffResult[]
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots     Snapshot[]
+  diffResults   DiffResult[]
   
   @@map("projects")
 }

@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
 import { useSettingsStore } from '@/stores/settings-store'
+import { useAuthStore } from '@/stores/auth-store'
 
 export class ApiService {
   private client: AxiosInstance
@@ -35,53 +36,72 @@ export class ApiService {
       }
     })
 
-    // 요청 인터셉터: API Key 추가
+    this.setupInterceptors()
+  }
+
+  private setupInterceptors() {
+    const settingsStore = useSettingsStore()
+
+    // 요청 인터셉터: JWT 토큰 및 API Key 추가
     this.client.interceptors.request.use(
       (config) => {
+        const authStore = useAuthStore()
+        if (authStore.token) {
+          config.headers.set('Authorization', `Bearer ${authStore.token}`)
+        }
+
         const settings = settingsStore.settings
         if (settings.apiKey && settings.apiKeyHeader) {
-          config.headers = {
-            ...config.headers,
-            [settings.apiKeyHeader]: settings.apiKey
-          }
+          config.headers.set(settings.apiKeyHeader, settings.apiKey)
         }
         return config
       },
-      (error) => {
-        return Promise.reject(error)
-      }
+      (error) => Promise.reject(error)
     )
 
-    // 응답 인터셉터: 에러 처리
+    // 응답 인터셉터: 에러 처리 + 401 시 토큰 자동 갱신 후 재시도
     this.client.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
         if (axios.isAxiosError(error)) {
           if (error.response) {
             const status = error.response.status
             const statusText = error.response.statusText
             const url = error.config?.url || '알 수 없는 URL'
-            
-            // ✅ 백엔드에서 보내는 상세한 에러 메시지 추출
-            const backendErrorMessage = 
-              error.response.data?.error?.message || 
-              error.response.data?.message || 
-              null
-            
-            // ✅ 백엔드 에러 메시지가 있으면 우선 사용
-            if (backendErrorMessage) {
-              throw new Error(backendErrorMessage)
+            const originalRequest = error.config as any
+
+            // 401: 리프레시 토큰으로 재시도 (한 번만, _retry 플래그로 무한루프 방지)
+            if (status === 401 && !originalRequest._retry) {
+              originalRequest._retry = true
+              const authStore = useAuthStore()
+              const refreshed = await authStore.refreshTokens()
+
+              if (refreshed && authStore.token) {
+                originalRequest.headers = {
+                  ...originalRequest.headers,
+                  Authorization: `Bearer ${authStore.token}`
+                }
+                return this.client(originalRequest)
+              }
+
+              await authStore.logout()
+              throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.')
             }
-            
-            // 404는 특별 처리
+
+            const backendErrorMessage =
+              error.response.data?.error?.message ||
+              error.response.data?.message ||
+              null
+
+            if (backendErrorMessage) throw new Error(backendErrorMessage)
+
             if (status === 404) {
               throw new Error(
                 `API 엔드포인트를 찾을 수 없습니다: ${url}\n` +
                 `서버 URL이 올바른지 확인하세요. (예: http://localhost:3001)`
               )
             }
-            
-            // 기본 에러 메시지
+
             throw new Error(
               `API Error: ${status} - ${statusText}\n` +
               `요청 URL: ${error.config?.baseURL || ''}${url}`
@@ -142,65 +162,7 @@ export class ApiService {
     })
 
     // 인터셉터 재설정
-    this.client.interceptors.request.use(
-      (config) => {
-        const settings = settingsStore.settings
-        if (settings.apiKey && settings.apiKeyHeader) {
-          config.headers = {
-            ...config.headers,
-            [settings.apiKeyHeader]: settings.apiKey
-          }
-        }
-        return config
-      },
-      (error) => {
-        return Promise.reject(error)
-      }
-    )
-
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (axios.isAxiosError(error)) {
-          if (error.response) {
-            const status = error.response.status
-            const statusText = error.response.statusText
-            const url = error.config?.url || '알 수 없는 URL'
-            
-            // ✅ 백엔드에서 보내는 상세한 에러 메시지 추출
-            const backendErrorMessage = 
-              error.response.data?.error?.message || 
-              error.response.data?.message || 
-              null
-            
-            // ✅ 백엔드 에러 메시지가 있으면 우선 사용
-            if (backendErrorMessage) {
-              throw new Error(backendErrorMessage)
-            }
-            
-            // 404는 특별 처리
-            if (status === 404) {
-              throw new Error(
-                `API 엔드포인트를 찾을 수 없습니다: ${url}\n` +
-                `서버 URL이 올바른지 확인하세요. (예: http://localhost:3001)`
-              )
-            }
-            
-            // 기본 에러 메시지
-            throw new Error(
-              `API Error: ${status} - ${statusText}\n` +
-              `요청 URL: ${error.config?.baseURL || ''}${url}`
-            )
-          } else if (error.request) {
-            throw new Error(
-              `API 서버에 연결할 수 없습니다.\n` +
-              `서버가 실행 중인지 확인하세요. (Base URL: ${error.config?.baseURL || '설정되지 않음'})`
-            )
-          }
-        }
-        throw error
-      }
-    )
+    this.setupInterceptors()
   }
 }
 

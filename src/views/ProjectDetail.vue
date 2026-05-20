@@ -87,7 +87,9 @@
               </span>
             </div>
             <button class="toggle-btn" :class="{ expanded: showApiList }">
-              {{ showApiList ? '▼' : '▶' }}
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </button>
           </div>
           
@@ -107,8 +109,10 @@
                   <h3>{{ tagName }}</h3>
                   <span class="tag-count">{{ group.length }}개</span>
                 </div>
-                <div class="tag-expand-icon">
-                  {{ expandedTags.has(tagName) ? '▼' : '▶' }}
+                <div class="tag-expand-icon" :class="{ expanded: expandedTags.has(tagName) }">
+                  <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
                 </div>
               </div>
               
@@ -117,7 +121,7 @@
                   v-for="(endpoint, index) in group"
                   :key="`${tagName}-${index}`"
                   class="api-item"
-                  :class="{ expanded: expandedApiIndex === `${tagName}-${index}` }"
+                  :class="[{ expanded: expandedApiIndex === `${tagName}-${index}` }, `api-item-${endpoint.method.toLowerCase()}`]"
                   @click.stop="toggleApiDetail(`${tagName}-${index}`)"
                 >
                   <div class="api-main">
@@ -130,12 +134,14 @@
                         {{ endpoint.summary }}
                       </div>
                     </div>
-                    <div class="api-expand-icon">
-                      {{ expandedApiIndex === `${tagName}-${index}` ? '▼' : '▶' }}
+                    <div class="api-expand-icon" :class="{ expanded: expandedApiIndex === `${tagName}-${index}` }">
+                      <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
                     </div>
                   </div>
                   
-                  <div v-if="expandedApiIndex === `${tagName}-${index}`" class="api-details">
+                  <div v-if="expandedApiIndex === `${tagName}-${index}`" class="api-details" @click.stop>
                     <!-- Parameters -->
                     <div v-if="endpoint.parameters && endpoint.parameters.length > 0" class="detail-section">
                       <h4>Parameters</h4>
@@ -155,8 +161,57 @@
 
                     <!-- Request Body -->
                     <div v-if="endpoint.requestBody" class="detail-section">
-                      <h4>Request Body</h4>
-                      <pre class="code-block">{{ formatJson(endpoint.requestBody) }}</pre>
+                      <div class="body-header">
+                        <h4>Request Body</h4>
+                        <span v-if="endpoint.requestBody.required" class="body-required-badge">required</span>
+                      </div>
+                      <div
+                        v-for="contentType in getRequestBodyContentTypes(endpoint.requestBody)"
+                        :key="contentType"
+                        class="body-content-block"
+                      >
+                        <div class="body-content-type">{{ contentType }}</div>
+                        <div class="body-tabs">
+                          <button
+                            class="body-tab-btn"
+                            :class="{ active: getBodyTab(`${tagName}-${index}-${contentType}`) === 'example' }"
+                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'example')"
+                          >Example Value</button>
+                          <button
+                            class="body-tab-btn"
+                            :class="{ active: getBodyTab(`${tagName}-${index}-${contentType}`) === 'schema' }"
+                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'schema')"
+                          >Schema</button>
+                        </div>
+                        <template v-if="endpoint.requestBody.content[contentType]?.schema">
+                          <pre
+                            v-if="getBodyTab(`${tagName}-${index}-${contentType}`) === 'example'"
+                            class="code-block"
+                          >{{ formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema) }}</pre>
+                          <template v-else>
+                            <div
+                              v-if="getSchemaName(endpoint.requestBody.content[contentType].schema) || endpoint.requestBody.content[contentType].schema?.description"
+                              class="schema-description"
+                            >
+                              <span
+                                v-if="getSchemaName(endpoint.requestBody.content[contentType].schema)"
+                                class="schema-description-name"
+                              >{{ getSchemaName(endpoint.requestBody.content[contentType].schema) }}</span><span
+                                v-if="getSchemaName(endpoint.requestBody.content[contentType].schema) && endpoint.requestBody.content[contentType].schema?.description"
+                                class="schema-description-sep"
+                              >:</span>
+                              <span
+                                v-if="endpoint.requestBody.content[contentType].schema?.description"
+                                class="schema-description-text"
+                              >{{ endpoint.requestBody.content[contentType].schema.description.trim() }}</span>
+                            </div>
+                            <pre class="code-block">{{ formatSchema(endpoint.requestBody.content[contentType].schema) }}</pre>
+                          </template>
+                        </template>
+                        <pre v-else class="code-block">{{ formatJson(endpoint.requestBody.content[contentType]) }}</pre>
+                      </div>
+                      <!-- content 키가 없는 경우 폴백 -->
+                      <pre v-if="getRequestBodyContentTypes(endpoint.requestBody).length === 0" class="code-block">{{ formatJson(endpoint.requestBody) }}</pre>
                     </div>
 
                     <!-- Responses -->
@@ -175,7 +230,55 @@
                             <div v-if="response.description" class="response-desc">
                               {{ response.description }}
                             </div>
-                            <pre v-if="response.content" class="code-block">{{ formatJson(response.content) }}</pre>
+                            <!-- content-type 별 탭 표시 -->
+                            <template v-if="getResponseContentTypes(response).length > 0">
+                              <div
+                                v-for="contentType in getResponseContentTypes(response)"
+                                :key="contentType"
+                                class="body-content-block"
+                              >
+                                <div class="body-content-type">{{ contentType }}</div>
+                                <template v-if="response.content[contentType]?.schema || response.content[contentType]?.example">
+                                  <div class="body-tabs">
+                                    <button
+                                      class="body-tab-btn"
+                                      :class="{ active: getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'example' }"
+                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'example')"
+                                    >Example Value</button>
+                                    <button
+                                      v-if="response.content[contentType]?.schema"
+                                      class="body-tab-btn"
+                                      :class="{ active: getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'schema' }"
+                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'schema')"
+                                    >Schema</button>
+                                  </div>
+                                  <pre
+                                    v-if="getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'example' || !response.content[contentType]?.schema"
+                                    class="code-block"
+                                  >{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                  <template v-else>
+                                    <div
+                                      v-if="getSchemaName(response.content[contentType].schema) || response.content[contentType].schema?.description"
+                                      class="schema-description"
+                                    >
+                                      <span
+                                        v-if="getSchemaName(response.content[contentType].schema)"
+                                        class="schema-description-name"
+                                      >{{ getSchemaName(response.content[contentType].schema) }}</span><span
+                                        v-if="getSchemaName(response.content[contentType].schema) && response.content[contentType].schema?.description"
+                                        class="schema-description-sep"
+                                      >:</span>
+                                      <span
+                                        v-if="response.content[contentType].schema?.description"
+                                        class="schema-description-text"
+                                      >{{ response.content[contentType].schema.description.trim() }}</span>
+                                    </div>
+                                    <pre class="code-block">{{ formatSchema(response.content[contentType].schema) }}</pre>
+                                  </template>
+                                </template>
+                                <pre v-else class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                              </div>
+                            </template>
                           </div>
                         </div>
                       </div>
@@ -302,7 +405,13 @@ function resolveAllRefs(obj: any, swaggerData: any, visited = new Set<string>())
     const resolved = resolveRef(ref, swaggerData)
     if (resolved) {
       // 해결된 스키마도 재귀적으로 처리
-      return resolveAllRefs(resolved, swaggerData, new Set(visited))
+      const resolvedSchema = resolveAllRefs(resolved, swaggerData, new Set(visited))
+      // $ref 경로 마지막 세그먼트를 스키마 이름으로 보존 (e.g. "#/components/schemas/MySchema" → "MySchema")
+      const schemaName = ref.split('/').pop() || ''
+      if (schemaName && !resolvedSchema._schemaName) {
+        return { ...resolvedSchema, _schemaName: schemaName }
+      }
+      return resolvedSchema
     }
     
     return obj
@@ -477,10 +586,152 @@ function toggleApiDetail(key: string) {
 
 function formatJson(obj: any): string {
   try {
-    return JSON.stringify(obj, null, 2)
+    return JSON.stringify(obj, null, 2).replace(/\\n/g, '\n')
   } catch {
     return String(obj)
   }
+}
+
+// Request Body 탭 상태 (엔드포인트 key → 'example' | 'schema')
+const bodyTabMap = ref<Record<string, 'example' | 'schema'>>({})
+
+function getBodyTab(key: string): 'example' | 'schema' {
+  return bodyTabMap.value[key] ?? 'example'
+}
+
+function setBodyTab(key: string, tab: 'example' | 'schema') {
+  bodyTabMap.value[key] = tab
+}
+
+// Response 탭 상태 (엔드포인트 key + statusCode + contentType → 'example' | 'schema')
+const responseTabMap = ref<Record<string, 'example' | 'schema'>>({})
+
+function getResponseTab(key: string): 'example' | 'schema' {
+  return responseTabMap.value[key] ?? 'example'
+}
+
+function setResponseTab(key: string, tab: 'example' | 'schema') {
+  responseTabMap.value[key] = tab
+}
+
+// 응답 content 에서 content-type 목록 추출
+function getResponseContentTypes(response: any): string[] {
+  if (!response?.content) return []
+  return Object.keys(response.content)
+}
+
+// 응답 content-type 블록의 Example Value 조립
+// 우선순위: content.example → content.examples 첫번째 → schema.example → buildExampleFromSchema
+function buildExampleFromResponseContent(contentTypeBlock: any): any {
+  if (!contentTypeBlock) return null
+
+  // content-type 레벨의 example 필드
+  if (contentTypeBlock.example !== undefined) return contentTypeBlock.example
+
+  // content-type 레벨의 examples 맵 (첫 번째 항목의 value 사용)
+  if (contentTypeBlock.examples && typeof contentTypeBlock.examples === 'object') {
+    const firstKey = Object.keys(contentTypeBlock.examples)[0]
+    if (firstKey) {
+      const firstExample = contentTypeBlock.examples[firstKey]
+      if (firstExample?.value !== undefined) return firstExample.value
+    }
+  }
+
+  // schema 레벨로 폴백
+  return buildExampleFromSchema(contentTypeBlock.schema) ?? contentTypeBlock.schema ?? null
+}
+
+// schema에서 이름 추출 (_schemaName 우선, 없으면 title)
+function getSchemaName(schema: any): string | null {
+  if (!schema) return null
+  return schema._schemaName || schema.title || null
+}
+
+// formatJson 출력 시 내부 메타 필드(_schemaName 등) 제외
+function formatSchema(schema: any): string {
+  if (!schema) return ''
+  try {
+    // properties가 있으면 properties만, 없으면 메타 필드 제거 후 전체 출력
+    const target = schema.properties
+      ? JSON.parse(JSON.stringify(schema.properties))
+      : (() => {
+          const clean = JSON.parse(JSON.stringify(schema))
+          delete clean._schemaName
+          return clean
+        })()
+    return JSON.stringify(target, null, 2).replace(/\\n/g, '\n')
+  } catch {
+    return String(schema)
+  }
+}
+
+// requestBody 에서 content-type 목록 추출 (e.g. ['application/json'])
+function getRequestBodyContentTypes(requestBody: any): string[] {
+  if (!requestBody?.content) return []
+  const types = Object.keys(requestBody.content)
+
+  // application/json 계열 우선 정렬
+  const preferred = ['application/json', 'application/json;charset=UTF-8']
+  types.sort((a, b) => {
+    const aScore = preferred.findIndex(p => a.toLowerCase().startsWith(p.toLowerCase()))
+    const bScore = preferred.findIndex(p => b.toLowerCase().startsWith(p.toLowerCase()))
+    const aRank = aScore === -1 ? 99 : aScore
+    const bRank = bScore === -1 ? 99 : bScore
+    return aRank - bRank
+  })
+
+  // 동일한 schema를 가진 와일드카드(*/*) 등 중복 content-type 제거
+  // 첫 번째 항목(application/json 등)과 schema가 같으면 제거
+  if (types.length > 1) {
+    const firstSchema = JSON.stringify(requestBody.content[types[0]]?.schema)
+    return types.filter((type, idx) => {
+      if (idx === 0) return true
+      return JSON.stringify(requestBody.content[type]?.schema) !== firstSchema
+    })
+  }
+
+  return types
+}
+
+// schema에서 Example Value 객체 조립
+function buildExampleFromSchema(schema: any): any {
+  if (!schema) return null
+
+  // 최상위 example 필드가 있으면 그대로 사용
+  if (schema.example !== undefined) return schema.example
+
+  // properties를 순회해 각 필드의 example 조립
+  if (schema.type === 'object' && schema.properties) {
+    const result: Record<string, any> = {}
+    for (const [key, prop] of Object.entries(schema.properties as Record<string, any>)) {
+      if (prop.example !== undefined) {
+        result[key] = prop.example
+      } else if (prop.type === 'string') {
+        result[key] = prop.description ? `(${prop.description})` : 'string'
+      } else if (prop.type === 'integer' || prop.type === 'number') {
+        result[key] = 0
+      } else if (prop.type === 'boolean') {
+        result[key] = false
+      } else if (prop.type === 'array') {
+        result[key] = []
+      } else if (prop.type === 'object') {
+        result[key] = {}
+      } else {
+        result[key] = null
+      }
+    }
+    return result
+  }
+
+  if (schema.type === 'array') {
+    if (schema.items) {
+      const item = buildExampleFromSchema(schema.items)
+      return item !== null ? [item] : []
+    }
+    return []
+  }
+
+  return null
 }
 
 function getStatusClass(statusCode: string): string {
@@ -700,23 +951,30 @@ onMounted(async () => {
     .toggle-btn {
       background: none;
       border: none;
-      font-size: 1rem;
       color: var(--color-text-secondary);
       cursor: pointer;
       padding: $spacing-xs;
-      transition: all 0.2s;
+      transition: color 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
       min-width: 24px;
 
+      .chevron-icon {
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: rotate(0deg);
+      }
+
       &:hover {
         color: var(--color-text-primary);
-        transform: scale(1.1);
       }
 
       &.expanded {
         color: var(--color-primary);
+
+        .chevron-icon {
+          transform: rotate(90deg);
+        }
       }
     }
   }
@@ -726,8 +984,8 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: $spacing-md;
-  max-height: 600px;
-  overflow-y: auto;
+  // max-height: 800px;
+  // overflow-y: auto;
   margin-top: 10px;
   padding: $spacing-xs;
   
@@ -796,9 +1054,20 @@ onMounted(async () => {
 
   .tag-expand-icon {
     color: var(--color-text-secondary);
-    font-size: 0.875rem;
-    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+
+    .chevron-icon {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: rotate(0deg);
+    }
+
+    &.expanded .chevron-icon {
+      transform: rotate(90deg);
+    }
   }
+
 }
 
 .tag-apis {
@@ -827,6 +1096,39 @@ onMounted(async () => {
     background: var(--bg-secondary);
     box-shadow: $shadow-md;
   }
+
+  &.api-item-post {
+    background: #d8ffe1;
+
+    &:hover,
+    &.expanded {
+      background: #c2fee2;
+    }
+  }
+  &.api-item-delete{
+    background: #fee2e2;
+
+    &:hover,
+    &.expanded {
+      background: #fcd3d3;
+    }
+  }
+  &.api-item-put {
+    background: #fef3c7;
+
+    &:hover,
+    &.expanded {
+      background: #fdf6d9;
+    }
+  }
+  &.api-item-patch {
+    background: #e0e7ff;
+
+    &:hover,
+    &.expanded {
+      background: #d6dfff;
+    }
+  }
 }
 
 .api-main {
@@ -839,8 +1141,21 @@ onMounted(async () => {
 .api-expand-icon {
   margin-left: auto;
   color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+
+  .chevron-icon {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(0deg);
+  }
+
+  &.expanded .chevron-icon {
+    transform: rotate(90deg);
+    color: var(--color-primary);
+  }
 }
 
 .api-method {
@@ -856,26 +1171,31 @@ onMounted(async () => {
   &.method-get {
     background: #dbeafe;
     color: #1e40af;
+    border: 1px solid #65a05d;
   }
 
   &.method-post {
-    background: #d1fae5;
+    background: #7bf6b6;
     color: #065f46;
+    border: 1px solid #65a05d;
   }
 
   &.method-put {
     background: #fef3c7;
     color: #92400e;
+    border: 1px solid #49220a;
   }
 
   &.method-patch {
     background: #e0e7ff;
     color: #3730a3;
+    border: 1px solid #5181a5;
   }
 
   &.method-delete {
     background: #fee2e2;
     color: #991b1b;
+    border: 1px solid #540f0f;
   }
 
   &.method-options,
@@ -945,6 +1265,119 @@ onMounted(async () => {
   }
 }
 
+.body-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+  padding-bottom: $spacing-xs;
+  border-bottom: 1px solid var(--color-border);
+
+  h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.body-required-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  background: $color-danger;
+  padding: 1px $spacing-xs;
+  border-radius: $radius-sm;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.body-content-block {
+  margin-bottom: $spacing-sm;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.chevron-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.schema-description {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  margin-bottom: $spacing-sm;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 10px;
+
+  .schema-description-name {
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  }
+
+  .schema-description-sep {
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-right: $spacing-xs;
+  }
+
+  .schema-description-text {
+    color: var(--color-text-secondary);
+  }
+}
+
+.body-content-type {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: var(--color-text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-border);
+  padding: 2px $spacing-sm;
+  border-radius: $radius-sm;
+  margin-bottom: $spacing-xs;
+}
+
+.body-tabs {
+  display: flex;
+  gap: 2px;
+  // margin-bottom: $spacing-xs;
+  margin-top: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.body-tab-btn {
+  padding: $spacing-xs $spacing-md;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: none;
+  border: 1px solid var(--color-border);
+  // border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+
+  &.active {
+    color: var(--color-primary);
+    // border-bottom-color: var(--color-primary);
+    font-weight: 600;
+  }
+}
+
 .parameter-list {
   display: flex;
   flex-direction: column;
@@ -992,7 +1425,7 @@ onMounted(async () => {
   font-size: 0.7rem;
   line-height: 1.5;
   overflow-x: auto;
-  max-height: 300px;
+  max-height: 500px;
   overflow-y: auto;
   margin: 0;
 

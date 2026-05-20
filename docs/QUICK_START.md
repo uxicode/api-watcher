@@ -70,7 +70,7 @@ npm run prisma:generate
 npm run prisma:migrate
 ```
 
-또는 **[server/SETUP_GUIDE.md](./server/SETUP_GUIDE.md)** 파일을 참고하세요!
+또는 **[server/SETUP_GUIDE.md](../server/SETUP_GUIDE.md)** 파일을 참고하세요!
 
 요약:
 1. PostgreSQL 설치 (`brew install postgresql@15`)
@@ -88,7 +88,7 @@ npm run prisma:migrate
 
 **해결:**
 1. **LocalStorage 사용으로 전환** (백엔드 서버 주소 비우기)
-2. 또는 **PostgreSQL 설치 및 실행** ([server/SETUP_GUIDE.md](./server/SETUP_GUIDE.md))
+2. 또는 **PostgreSQL 설치 및 실행** ([server/SETUP_GUIDE.md](../server/SETUP_GUIDE.md))
 
 ### Swagger URL이 HTML 페이지
 
@@ -104,7 +104,7 @@ npm run prisma:migrate
 
 ## 📚 추가 문서
 
-- [README.md](./README.md) - 전체 프로젝트 개요
+- [README.md](../README.md) - 전체 프로젝트 개요
 - [SWAGGER_URL_GUIDE.md](./SWAGGER_URL_GUIDE.md) - Swagger JSON URL 찾기
-- [server/SETUP_GUIDE.md](./server/SETUP_GUIDE.md) - 백엔드 설정 상세 가이드
-- [server/README.md](./server/README.md) - 백엔드 API 문서
+- [server/SETUP_GUIDE.md](../server/SETUP_GUIDE.md) - 백엔드 설정 상세 가이드
+- [server/README.md](../server/README.md) - 백엔드 API 문서

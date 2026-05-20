@@ -7,8 +7,12 @@ import {
   deleteProject,
   collectSwagger
 } from '../controllers/projectController.js'
+import { authenticateToken } from '../middleware/auth.js'
 
 export const projectRouter = Router()
+
+// 모든 프로젝트 라우트에 인증 필요
+projectRouter.use(authenticateToken)
 
 projectRouter.get('/', getProjects)
 projectRouter.get('/:id', getProject)
