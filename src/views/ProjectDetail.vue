@@ -86,11 +86,86 @@
                 총 {{ apiEndpoints.length }}개 엔드포인트
               </span>
             </div>
+            <div class="section-header-actions" @click.stop>
+              <button
+                class="authorize-btn"
+                :class="{ active: showAuthorizePanel }"
+                @click.stop="showAuthorizePanel = !showAuthorizePanel"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Authorize
+              </button>
+            </div>
             <button class="toggle-btn" :class="{ expanded: showApiList }">
               <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
+          </div>
+
+          <!-- Authorize 패널 -->
+          <div v-if="showAuthorizePanel" class="authorize-panel" @click.stop>
+            <div class="authorize-panel-header">
+              <h4>Authorize</h4>
+              <button class="authorize-close-btn" @click.stop="showAuthorizePanel = false">✕</button>
+            </div>
+            <div class="authorize-fields">
+              <div class="authorize-field">
+                <label>Bearer Token</label>
+                <div class="authorize-input-row">
+                  <input
+                    v-model="authConfig.bearerToken"
+                    type="text"
+                    placeholder="JWT 토큰 입력 (Bearer 제외)"
+                    class="authorize-input"
+                    @click.stop
+                  />
+                  <button
+                    v-if="authConfig.bearerToken"
+                    class="authorize-clear-btn"
+                    @click.stop="authConfig.bearerToken = ''"
+                  >지우기</button>
+                </div>
+              </div>
+              <div class="authorize-field">
+                <label>API Key</label>
+                <div class="authorize-input-row">
+                  <input
+                    v-model="authConfig.apiKeyHeader"
+                    type="text"
+                    placeholder="헤더명 (예: X-API-Key)"
+                    class="authorize-input authorize-input-sm"
+                    @click.stop
+                  />
+                  <input
+                    v-model="authConfig.apiKey"
+                    type="text"
+                    placeholder="API Key 값"
+                    class="authorize-input"
+                    @click.stop
+                  />
+                  <button
+                    v-if="authConfig.apiKey"
+                    class="authorize-clear-btn"
+                    @click.stop="authConfig.apiKey = ''"
+                  >지우기</button>
+                </div>
+              </div>
+            </div>
+            <div class="authorize-panel-footer">
+              <span class="authorize-status">
+                <template v-if="authConfig.bearerToken || authConfig.apiKey">
+                  <span class="status-dot active" /> 인증 설정됨
+                </template>
+                <template v-else>
+                  <span class="status-dot" /> 인증 없음
+                </template>
+              </span>
+              <button class="btn btn-secondary btn-sm" @click.stop="showAuthorizePanel = false">닫기</button>
+            </div>
           </div>
           
           <div v-if="apiEndpoints.length === 0" class="empty-state">
@@ -142,6 +217,182 @@
                   </div>
                   
                   <div v-if="expandedApiIndex === `${tagName}-${index}`" class="api-details" @click.stop>
+
+                    <!-- Try it out 버튼 -->
+                    <div class="try-it-out-header">
+                      <button
+                        class="try-it-out-btn"
+                        :class="{ active: tryItOutMap[`${tagName}-${index}`] }"
+                        @click.stop="toggleTryItOut(`${tagName}-${index}`, endpoint)"
+                      >
+                        {{ tryItOutMap[`${tagName}-${index}`] ? 'Cancel' : 'Try it out' }}
+                      </button>
+                    </div>
+
+                    <!-- Try it out 폼 -->
+                    <div v-if="tryItOutMap[`${tagName}-${index}`] && tryItOutValues[`${tagName}-${index}`]" class="try-it-out-form">
+
+                      <!-- Path Parameters -->
+                      <template v-if="getParamsByIn(endpoint, 'path').length > 0">
+                        <div class="tio-section-title">Path Parameters</div>
+                        <div
+                          v-for="param in getParamsByIn(endpoint, 'path')"
+                          :key="param.name"
+                          class="tio-param-row"
+                        >
+                          <label class="tio-label">
+                            {{ param.name }}
+                            <span v-if="param.required" class="tio-required">*</span>
+                            <span class="tio-in-badge">path</span>
+                          </label>
+                          <input
+                            v-model="tryItOutValues[`${tagName}-${index}`].pathParams[param.name]"
+                            type="text"
+                            class="tio-input"
+                            :placeholder="param.schema?.example ?? param.description ?? param.name"
+                            @click.stop
+                          />
+                          <span v-if="param.description" class="tio-desc">{{ param.description }}</span>
+                        </div>
+                      </template>
+
+                      <!-- Query Parameters -->
+                      <template v-if="getParamsByIn(endpoint, 'query').length > 0">
+                        <div class="tio-section-title">Query Parameters</div>
+                        <div
+                          v-for="param in getParamsByIn(endpoint, 'query')"
+                          :key="param.name"
+                          class="tio-param-row"
+                        >
+                          <label class="tio-label">
+                            {{ param.name }}
+                            <span v-if="param.required" class="tio-required">*</span>
+                            <span class="tio-in-badge">query</span>
+                          </label>
+                          <input
+                            v-model="tryItOutValues[`${tagName}-${index}`].queryParams[param.name]"
+                            type="text"
+                            class="tio-input"
+                            :placeholder="param.schema?.example ?? param.description ?? ''"
+                            @click.stop
+                          />
+                          <span v-if="param.description" class="tio-desc">{{ param.description }}</span>
+                        </div>
+                      </template>
+
+                      <!-- Header Parameters -->
+                      <template v-if="getParamsByIn(endpoint, 'header').length > 0">
+                        <div class="tio-section-title">Header Parameters</div>
+                        <div
+                          v-for="param in getParamsByIn(endpoint, 'header')"
+                          :key="param.name"
+                          class="tio-param-row"
+                        >
+                          <label class="tio-label">
+                            {{ param.name }}
+                            <span v-if="param.required" class="tio-required">*</span>
+                            <span class="tio-in-badge">header</span>
+                          </label>
+                          <input
+                            v-model="tryItOutValues[`${tagName}-${index}`].headerParams[param.name]"
+                            type="text"
+                            class="tio-input"
+                            :placeholder="param.schema?.example ?? param.description ?? ''"
+                            @click.stop
+                          />
+                        </div>
+                      </template>
+
+                      <!-- Request Body -->
+                      <template v-if="endpoint.requestBody">
+                        <div class="tio-section-title">Request Body</div>
+                        <textarea
+                          v-model="tryItOutValues[`${tagName}-${index}`].body"
+                          class="tio-body-textarea"
+                          placeholder="JSON 형식으로 입력하세요"
+                          rows="8"
+                          @click.stop
+                        />
+                      </template>
+
+                      <!-- Execute / Cancel -->
+                      <div class="tio-actions">
+                        <button
+                          class="tio-execute-btn"
+                          :disabled="tryItOutResponse[`${tagName}-${index}`]?.loading"
+                          @click.stop="executeRequest(`${tagName}-${index}`, endpoint)"
+                        >
+                          {{ tryItOutResponse[`${tagName}-${index}`]?.loading ? '요청 중...' : 'Execute' }}
+                        </button>
+                        <span v-if="swaggerBaseUrl" class="tio-base-url">{{ swaggerBaseUrl }}</span>
+                        <span v-else class="tio-base-url tio-base-url-warn">⚠ servers URL 없음 — Swagger 문서에 servers 설정을 확인하세요</span>
+                      </div>
+
+                      <!-- 응답 패널 -->
+                      <div v-if="tryItOutResponse[`${tagName}-${index}`]" class="tio-response-panel">
+                        <div class="tio-response-header">
+                          <span class="tio-response-title">Responses</span>
+                        </div>
+
+                        <!-- 로딩 -->
+                        <div v-if="tryItOutResponse[`${tagName}-${index}`].loading" class="tio-response-loading">
+                          요청 중...
+                        </div>
+
+                        <!-- 에러 -->
+                        <div v-else-if="tryItOutResponse[`${tagName}-${index}`].error" class="tio-response-error">
+                          {{ tryItOutResponse[`${tagName}-${index}`].error }}
+                        </div>
+
+                        <!-- 결과 -->
+                        <template v-else>
+                          <!-- Request URL -->
+                          <div class="tio-response-section">
+                            <div class="tio-response-label">Request URL</div>
+                            <div class="tio-response-url">{{ tryItOutResponse[`${tagName}-${index}`].requestUrl }}</div>
+                          </div>
+
+                          <!-- Status -->
+                          <div class="tio-response-section">
+                            <div class="tio-response-label">Status</div>
+                            <span
+                              class="tio-status-badge"
+                              :class="getStatusClass(String(tryItOutResponse[`${tagName}-${index}`].status))"
+                            >
+                              {{ tryItOutResponse[`${tagName}-${index}`].status }}
+                              {{ tryItOutResponse[`${tagName}-${index}`].statusText }}
+                            </span>
+                          </div>
+
+                          <!-- Response Headers -->
+                          <div v-if="Object.keys(tryItOutResponse[`${tagName}-${index}`].headers).length > 0" class="tio-response-section">
+                            <div class="tio-response-label">Response Headers</div>
+                            <div class="code-block-wrapper">
+                              <button
+                                class="copy-btn"
+                                :class="{ copied: getCopyState(`tio-hdr-${tagName}-${index}`) === 'copied' }"
+                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].headers), `tio-hdr-${tagName}-${index}`)"
+                              >{{ getCopyState(`tio-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].headers) }}</pre>
+                            </div>
+                          </div>
+
+                          <!-- Response Body -->
+                          <div class="tio-response-section">
+                            <div class="tio-response-label">Response Body</div>
+                            <div class="code-block-wrapper">
+                              <button
+                                class="copy-btn"
+                                :class="{ copied: getCopyState(`tio-body-${tagName}-${index}`) === 'copied' }"
+                                @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].body, `tio-body-${tagName}-${index}`)"
+                              >{{ getCopyState(`tio-body-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre class="code-block">{{ tryItOutResponse[`${tagName}-${index}`].body }}</pre>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+
                     <!-- Parameters -->
                     <div v-if="endpoint.parameters && endpoint.parameters.length > 0" class="detail-section">
                       <h4>Parameters</h4>
@@ -184,10 +435,17 @@
                           >Schema</button>
                         </div>
                         <template v-if="endpoint.requestBody.content[contentType]?.schema">
-                          <pre
+                          <div
                             v-if="getBodyTab(`${tagName}-${index}-${contentType}`) === 'example'"
-                            class="code-block"
-                          >{{ formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema) }}</pre>
+                            class="code-block-wrapper"
+                          >
+                            <button
+                              class="copy-btn"
+                              :class="{ copied: getCopyState(`req-ex-${tagName}-${index}-${contentType}`) === 'copied' }"
+                              @click.stop="copyToClipboard(formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema), `req-ex-${tagName}-${index}-${contentType}`)"
+                            >{{ getCopyState(`req-ex-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                            <pre class="code-block">{{ formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema) }}</pre>
+                          </div>
                           <template v-else>
                             <div
                               v-if="getSchemaName(endpoint.requestBody.content[contentType].schema) || endpoint.requestBody.content[contentType].schema?.description"
@@ -205,10 +463,24 @@
                                 class="schema-description-text"
                               >{{ endpoint.requestBody.content[contentType].schema.description.trim() }}</span>
                             </div>
-                            <pre class="code-block">{{ formatSchema(endpoint.requestBody.content[contentType].schema) }}</pre>
+                            <div class="code-block-wrapper">
+                              <button
+                                class="copy-btn"
+                                :class="{ copied: getCopyState(`req-sc-${tagName}-${index}-${contentType}`) === 'copied' }"
+                                @click.stop="copyToClipboard(formatSchema(endpoint.requestBody.content[contentType].schema), `req-sc-${tagName}-${index}-${contentType}`)"
+                              >{{ getCopyState(`req-sc-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre class="code-block">{{ formatSchema(endpoint.requestBody.content[contentType].schema) }}</pre>
+                            </div>
                           </template>
                         </template>
-                        <pre v-else class="code-block">{{ formatJson(endpoint.requestBody.content[contentType]) }}</pre>
+                        <div v-else class="code-block-wrapper">
+                          <button
+                            class="copy-btn"
+                            :class="{ copied: getCopyState(`req-fb-${tagName}-${index}-${contentType}`) === 'copied' }"
+                            @click.stop="copyToClipboard(formatJson(endpoint.requestBody.content[contentType]), `req-fb-${tagName}-${index}-${contentType}`)"
+                          >{{ getCopyState(`req-fb-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                          <pre class="code-block">{{ formatJson(endpoint.requestBody.content[contentType]) }}</pre>
+                        </div>
                       </div>
                       <!-- content 키가 없는 경우 폴백 -->
                       <pre v-if="getRequestBodyContentTypes(endpoint.requestBody).length === 0" class="code-block">{{ formatJson(endpoint.requestBody) }}</pre>
@@ -252,10 +524,17 @@
                                       @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'schema')"
                                     >Schema</button>
                                   </div>
-                                  <pre
+                                  <div
                                     v-if="getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'example' || !response.content[contentType]?.schema"
-                                    class="code-block"
-                                  >{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                    class="code-block-wrapper"
+                                  >
+                                    <button
+                                      class="copy-btn"
+                                      :class="{ copied: getCopyState(`res-ex-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
+                                      @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-ex-${tagName}-${index}-${statusCode}-${contentType}`)"
+                                    >{{ getCopyState(`res-ex-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                    <pre class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                  </div>
                                   <template v-else>
                                     <div
                                       v-if="getSchemaName(response.content[contentType].schema) || response.content[contentType].schema?.description"
@@ -273,10 +552,24 @@
                                         class="schema-description-text"
                                       >{{ response.content[contentType].schema.description.trim() }}</span>
                                     </div>
-                                    <pre class="code-block">{{ formatSchema(response.content[contentType].schema) }}</pre>
+                                    <div class="code-block-wrapper">
+                                      <button
+                                        class="copy-btn"
+                                        :class="{ copied: getCopyState(`res-sc-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
+                                        @click.stop="copyToClipboard(formatSchema(response.content[contentType].schema), `res-sc-${tagName}-${index}-${statusCode}-${contentType}`)"
+                                      >{{ getCopyState(`res-sc-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                      <pre class="code-block">{{ formatSchema(response.content[contentType].schema) }}</pre>
+                                    </div>
                                   </template>
                                 </template>
-                                <pre v-else class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                <div v-else class="code-block-wrapper">
+                                  <button
+                                    class="copy-btn"
+                                    :class="{ copied: getCopyState(`res-fb-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
+                                    @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-fb-${tagName}-${index}-${statusCode}-${contentType}`)"
+                                  >{{ getCopyState(`res-fb-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                  <pre class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                </div>
                               </div>
                             </template>
                           </div>
@@ -315,8 +608,10 @@ import { Teleport } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
+import axios from 'axios'
 import { useProjectStore } from '@/stores/project-store'
 import { useSettingsStore } from '@/stores/settings-store'
+import { useAuthStore } from '@/stores/auth-store'
 import DiffCard from '@/components/DiffCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProjectFormModal from '@/components/ProjectFormModal.vue'
@@ -734,6 +1029,33 @@ function buildExampleFromSchema(schema: any): any {
   return null
 }
 
+// 클립보드 복사 상태 (key → 'idle' | 'copied')
+const copyStateMap = ref<Record<string, 'idle' | 'copied'>>({})
+
+async function copyToClipboard(text: string, key: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    copyStateMap.value[key] = 'copied'
+    setTimeout(() => { copyStateMap.value[key] = 'idle' }, 2000)
+  } catch {
+    // clipboard API 미지원 폴백
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.position = 'fixed'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+    copyStateMap.value[key] = 'copied'
+    setTimeout(() => { copyStateMap.value[key] = 'idle' }, 2000)
+  }
+}
+
+function getCopyState(key: string): 'idle' | 'copied' {
+  return copyStateMap.value[key] ?? 'idle'
+}
+
 function getStatusClass(statusCode: string): string {
   const code = parseInt(statusCode)
   if (code >= 200 && code < 300) return 'status-success'
@@ -767,6 +1089,196 @@ function handleDeleteConfirm() {
 
 function goHome() {
   router.push('/')
+}
+
+// ─── Authorize ─────────────────────────────────────────────────────────────
+
+const showAuthorizePanel = ref(false)
+const authConfig = ref({
+  bearerToken: '',
+  apiKey: '',
+  apiKeyHeader: 'X-API-Key'
+})
+
+// ─── Try it out ────────────────────────────────────────────────────────────
+
+interface TryItOutValues {
+  pathParams: Record<string, string>
+  queryParams: Record<string, string>
+  headerParams: Record<string, string>
+  body: string
+}
+
+interface TryItOutResult {
+  loading: boolean
+  requestUrl: string
+  status: number | null
+  statusText: string
+  headers: Record<string, string>
+  body: string
+  error: string | null
+}
+
+const tryItOutMap = ref<Record<string, boolean>>({})
+const tryItOutValues = ref<Record<string, TryItOutValues>>({})
+const tryItOutResponse = ref<Record<string, TryItOutResult>>({})
+
+// Swagger servers[0].url 또는 project.swaggerUrl 에서 base URL 추출
+const swaggerBaseUrl = computed(() => {
+  const snap = snapshots.value[0]
+  if (!snap) return ''
+  try {
+    const data = JSON.parse(snap.data)
+    if (data.servers?.[0]?.url) return data.servers[0].url.replace(/\/$/, '')
+  } catch { /* ignore */ }
+  // project.swaggerUrl에서 swagger 경로 제거하여 base 추출
+  const swaggerUrl = project.value?.swaggerUrl || ''
+  try {
+    const u = new URL(swaggerUrl)
+    return `${u.protocol}//${u.host}`
+  } catch {
+    return ''
+  }
+})
+
+function initTryItOut(key: string, endpoint: ApiEndpoint) {
+  const pathParams: Record<string, string> = {}
+  const queryParams: Record<string, string> = {}
+  const headerParams: Record<string, string> = {}
+
+  for (const param of (endpoint.parameters || [])) {
+    const p = param as any
+    const defaultVal = p.schema?.default ?? p.schema?.example ?? ''
+    if (p.in === 'path') pathParams[p.name] = String(defaultVal)
+    else if (p.in === 'query') queryParams[p.name] = String(defaultVal)
+    else if (p.in === 'header') headerParams[p.name] = String(defaultVal)
+  }
+
+  // request body: application/json schema에서 example 조립
+  let body = ''
+  if (endpoint.requestBody) {
+    const rb = endpoint.requestBody as any
+    const contentTypes = getRequestBodyContentTypes(rb)
+    const ct = contentTypes[0]
+    if (ct) {
+      const schema = rb.content?.[ct]?.schema
+      const example = buildExampleFromSchema(schema)
+      body = example != null ? JSON.stringify(example, null, 2) : ''
+    }
+  }
+
+  tryItOutValues.value[key] = { pathParams, queryParams, headerParams, body }
+}
+
+function toggleTryItOut(key: string, endpoint: ApiEndpoint) {
+  const isActive = tryItOutMap.value[key]
+  tryItOutMap.value[key] = !isActive
+  if (!isActive) {
+    initTryItOut(key, endpoint)
+    // 결과 초기화
+    delete tryItOutResponse.value[key]
+  }
+}
+
+async function executeRequest(key: string, endpoint: ApiEndpoint) {
+  const values = tryItOutValues.value[key]
+  if (!values) return
+
+  // reactive ref에 직접 할당해야 Vue가 변경을 감지함
+  tryItOutResponse.value[key] = {
+    loading: true,
+    requestUrl: '',
+    status: null,
+    statusText: '',
+    headers: {},
+    body: '',
+    error: null
+  }
+
+  try {
+    const base = swaggerBaseUrl.value
+    if (!base) {
+      tryItOutResponse.value[key] = { ...tryItOutResponse.value[key], loading: false, error: 'Swagger 문서에 servers URL이 없어 요청을 보낼 수 없습니다' }
+      return
+    }
+
+    // path params 치환
+    let resolvedPath = endpoint.path
+    for (const [k, v] of Object.entries(values.pathParams)) {
+      resolvedPath = resolvedPath.replace(`{${k}}`, encodeURIComponent(v))
+    }
+
+    const url = new URL(`${base}${resolvedPath}`)
+
+    // query params 추가
+    for (const [k, v] of Object.entries(values.queryParams)) {
+      if (v !== '') url.searchParams.set(k, v)
+    }
+
+    const requestUrl = url.toString()
+    tryItOutResponse.value[key].requestUrl = requestUrl
+
+    // 헤더 조립 (대상 API용)
+    const targetHeaders: Record<string, string> = {}
+    if (authConfig.value.bearerToken) {
+      targetHeaders['Authorization'] = `Bearer ${authConfig.value.bearerToken}`
+    }
+    if (authConfig.value.apiKey && authConfig.value.apiKeyHeader) {
+      targetHeaders[authConfig.value.apiKeyHeader] = authConfig.value.apiKey
+    }
+    for (const [k, v] of Object.entries(values.headerParams)) {
+      if (v !== '') targetHeaders[k] = v
+    }
+
+    // body 파싱
+    let bodyData: any = undefined
+    const method = endpoint.method.toLowerCase()
+    if (['post', 'put', 'patch'].includes(method) && values.body.trim()) {
+      try {
+        bodyData = JSON.parse(values.body)
+        targetHeaders['Content-Type'] = 'application/json'
+      } catch {
+        targetHeaders['Content-Type'] = 'text/plain'
+        bodyData = values.body
+      }
+    }
+
+    // 백엔드 프록시를 통해 요청 (CORS 우회)
+    const authStore = useAuthStore()
+    const proxyBaseUrl = (import.meta.env.VITE_AUTH_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:3001'
+
+    const proxyResponse = await axios.post(
+      `${proxyBaseUrl}/api/proxy`,
+      { method, url: requestUrl, headers: targetHeaders, body: bodyData },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
+        }
+      }
+    )
+
+    const proxyData = proxyResponse.data
+    // 완료 시 전체 객체를 새로 할당해서 Vue 반응성 확실히 트리거
+    tryItOutResponse.value[key] = {
+      loading: false,
+      requestUrl,
+      status: proxyData.status,
+      statusText: proxyData.statusText,
+      headers: proxyData.headers || {},
+      body: typeof proxyData.body === 'object'
+        ? JSON.stringify(proxyData.body, null, 2)
+        : String(proxyData.body ?? ''),
+      error: null
+    }
+  } catch (err: any) {
+    const msg = err?.response?.data?.error?.message || err?.message || '요청 중 오류가 발생했습니다'
+    tryItOutResponse.value[key] = { ...tryItOutResponse.value[key], loading: false, error: msg }
+  }
+}
+
+function getParamsByIn(endpoint: ApiEndpoint, inType: string): any[] {
+  return (endpoint.parameters || []).filter((p: any) => p.in === inType)
 }
 
 onMounted(async () => {
@@ -1416,6 +1928,43 @@ onMounted(async () => {
   }
 }
 
+.code-block-wrapper {
+  position: relative;
+
+  &:hover .copy-btn {
+    opacity: 1;
+  }
+}
+
+.copy-btn {
+  position: absolute;
+  top: $spacing-xs;
+  right: $spacing-xs;
+  z-index: 1;
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #3a3a3a;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #4a4a4a;
+    color: #fff;
+  }
+
+  &.copied {
+    background: #1a4a2a;
+    color: #6ee7a0;
+    border-color: #2d6b42;
+    opacity: 1;
+  }
+}
+
 .code-block {
   background: #1e1e1e;
   color: #d4d4d4;
@@ -1499,6 +2048,376 @@ onMounted(async () => {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
   margin-bottom: $spacing-xs;
+}
+
+// ─── Authorize ───────────────────────────────────────────────────────────────
+
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-right: $spacing-sm;
+}
+
+.authorize-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px $spacing-sm;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover,
+  &.active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+}
+
+.authorize-panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 $radius-md $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-sm;
+}
+
+.authorize-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+
+  h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.authorize-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  padding: 2px 6px;
+
+  &:hover { color: var(--color-text-primary); }
+}
+
+.authorize-fields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.authorize-field {
+  label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+  }
+}
+
+.authorize-input-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.authorize-input {
+  flex: 1;
+  padding: 6px $spacing-sm;
+  font-size: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-sm;
+  background: var(--bg-secondary);
+  color: var(--color-text-primary);
+  outline: none;
+
+  &:focus { border-color: var(--color-primary); }
+
+  &.authorize-input-sm { max-width: 160px; flex: 0 0 160px; }
+}
+
+.authorize-clear-btn {
+  padding: 5px $spacing-sm;
+  font-size: 0.7rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-sm;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+
+  &:hover { border-color: #e53e3e; color: #e53e3e; }
+}
+
+.authorize-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-md;
+  padding-top: $spacing-sm;
+  border-top: 1px solid var(--color-border);
+}
+
+.authorize-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+
+  &.active { background: #38a169; }
+}
+
+.btn-sm {
+  padding: 4px $spacing-sm;
+  font-size: 0.75rem;
+}
+
+// ─── Try it out ──────────────────────────────────────────────────────────────
+
+.try-it-out-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: $spacing-xs 0 $spacing-sm;
+}
+
+.try-it-out-btn {
+  padding: 4px $spacing-md;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1.5px solid var(--color-primary);
+  color: var(--color-primary);
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover { background: rgba(66, 153, 225, 0.08); }
+
+  &.active {
+    background: #e53e3e;
+    border-color: #e53e3e;
+    color: #fff;
+
+    &:hover { background: #c53030; }
+  }
+}
+
+.try-it-out-form {
+  background: #1a1a2e;
+  border: 1px solid #2d2d4e;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.tio-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin: $spacing-md 0 $spacing-xs;
+
+  &:first-child { margin-top: 0; }
+}
+
+.tio-param-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: $spacing-xs $spacing-sm;
+  align-items: start;
+  margin-bottom: $spacing-xs;
+}
+
+.tio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d1d5db;
+  padding-top: 6px;
+  flex-wrap: wrap;
+}
+
+.tio-required {
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+.tio-in-badge {
+  font-size: 0.6rem;
+  font-weight: 500;
+  background: #2d2d4e;
+  color: #8b9cf4;
+  border: 1px solid #3d3d6e;
+  border-radius: 3px;
+  padding: 1px 4px;
+  text-transform: uppercase;
+}
+
+.tio-input {
+  width: 100%;
+  padding: 6px $spacing-sm;
+  font-size: 0.8rem;
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: #0f0f1e;
+  color: #d4d4d4;
+  border: 1px solid #3d3d6e;
+  border-radius: $radius-sm;
+  outline: none;
+  box-sizing: border-box;
+
+  &:focus { border-color: #6366f1; }
+  &::placeholder { color: #4b5563; }
+}
+
+.tio-desc {
+  grid-column: 2;
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: -2px;
+}
+
+.tio-body-textarea {
+  width: 100%;
+  padding: $spacing-sm;
+  font-size: 0.75rem;
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: #0f0f1e;
+  color: #d4d4d4;
+  border: 1px solid #3d3d6e;
+  border-radius: $radius-sm;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.5;
+
+  &:focus { border-color: #6366f1; }
+  &::placeholder { color: #4b5563; }
+}
+
+.tio-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.tio-execute-btn {
+  padding: 7px $spacing-lg;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) { background: #4338ca; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.tio-base-url {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-family: 'Monaco', 'Menlo', monospace;
+
+  &.tio-base-url-warn { color: #f59e0b; }
+}
+
+// ─── Try it out 응답 패널 ───────────────────────────────────────────────────
+
+.tio-response-panel {
+  margin-top: $spacing-md;
+  border-top: 1px solid #2d2d4e;
+  padding-top: $spacing-md;
+}
+
+.tio-response-header {
+  margin-bottom: $spacing-sm;
+}
+
+.tio-response-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #d1d5db;
+}
+
+.tio-response-loading {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  padding: $spacing-sm 0;
+}
+
+.tio-response-error {
+  font-size: 0.8rem;
+  color: #f87171;
+  padding: $spacing-sm;
+  background: #2d1b1b;
+  border: 1px solid #5c2626;
+  border-radius: $radius-sm;
+}
+
+.tio-response-section {
+  margin-bottom: $spacing-md;
+}
+
+.tio-response-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: $spacing-xs;
+}
+
+.tio-response-url {
+  font-size: 0.75rem;
+  font-family: 'Monaco', 'Menlo', monospace;
+  color: #a5b4fc;
+  word-break: break-all;
+  padding: $spacing-xs $spacing-sm;
+  background: #0f0f1e;
+  border-radius: $radius-sm;
+}
+
+.tio-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: $radius-sm;
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  &.status-success { background: #064e3b; color: #6ee7b7; }
+  &.status-redirect { background: #1e1b4b; color: #a5b4fc; }
+  &.status-client-error { background: #451a03; color: #fed7aa; }
+  &.status-server-error { background: #450a0a; color: #fca5a5; }
 }
 
 @include mobile {

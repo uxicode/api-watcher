@@ -7,6 +7,7 @@ import { projectRouter } from './routes/projects.js'
 import { snapshotRouter } from './routes/snapshots.js'
 import { diffRouter } from './routes/diffs.js'
 import { authRouter } from './routes/auth.js'
+import { proxyRouter } from './routes/proxy.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import './services/passport-strategies.js' // Passport 전략 초기화
 
@@ -55,6 +56,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/projects', projectRouter)
 app.use('/api/snapshots', snapshotRouter)
 app.use('/api/diffs', diffRouter)
+app.use('/api/proxy', proxyRouter)
 
 // Error handler
 app.use(errorHandler)

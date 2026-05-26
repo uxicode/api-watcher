@@ -87,15 +87,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth-store'
-import { useSettingsStore } from '@/stores/settings-store'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const settingsStore = useSettingsStore()
+
+const AUTH_BASE_URL = (import.meta.env.VITE_AUTH_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:3001'
 
 const form = ref({
   email: '',
@@ -104,10 +104,6 @@ const form = ref({
 
 const error = ref<string | null>(null)
 const isLoading = ref(false)
-
-const apiBaseUrl = computed(() => {
-  return settingsStore.apiBaseUrl || 'http://localhost:3001'
-})
 
 async function handleLogin() {
   error.value = null
@@ -124,28 +120,7 @@ async function handleLogin() {
 }
 
 function handleSocialLogin(provider: 'github' | 'google') {
-  // 설정된 API Base URL이 있으면 사용, 없으면 현재 페이지 호스트 기반으로 추론
-  let baseUrl = apiBaseUrl.value
-  
-  // API Base URL이 설정되지 않았거나 기본값인 경우
-  if (!baseUrl || baseUrl === 'http://localhost:3001') {
-    const currentHost = window.location.hostname
-    const currentPort = window.location.port
-    
-    // 로컬 주소인 경우 (localhost, 127.0.0.1, 또는 로컬 IP)
-    if (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost.startsWith('192.168.') || currentHost.startsWith('10.') || currentHost.startsWith('172.')) {
-      // 프론트엔드 포트가 5173이면 백엔드는 3001로 추론
-      const backendPort = currentPort === '5173' ? '3001' : currentPort || '3001'
-      baseUrl = `http://${currentHost}:${backendPort}`
-    } else {
-      // 프로덕션 환경인 경우 현재 호스트 사용
-      baseUrl = `${window.location.protocol}//${currentHost}${currentPort ? `:${currentPort}` : ''}`
-    }
-  }
-  
-  // 마지막 슬래시 제거
-  baseUrl = baseUrl.replace(/\/$/, '')
-  window.location.href = `${baseUrl}/api/auth/${provider}`
+  window.location.href = `${AUTH_BASE_URL}/api/auth/${provider}`
 }
 
 onMounted(() => {
