@@ -1,64 +1,79 @@
-import axios from 'axios'
-import type { LoginCredentials, RegisterData, AuthResponse, User } from '@/types/auth'
-
-// 자체 백엔드 주소: 환경변수 우선, 없으면 localhost:3001 폴백
-const AUTH_BASE_URL = (import.meta.env.VITE_AUTH_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:3001'
+import { supabase } from '@/lib/supabase'
+import type { LoginCredentials, RegisterData } from '@/types/auth'
 
 class AuthService {
   /**
-   * 로그인
+   * 이메일/비밀번호 로그인
+   * Supabase가 세션(accessToken + refreshToken)을 자동 관리
    */
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await axios.post<AuthResponse>(
-      `${AUTH_BASE_URL}/api/auth/login`,
-      credentials
-    )
-    return response.data
+  async login(credentials: LoginCredentials) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })
+    if (error) throw new Error(error.message)
+    return data
   }
 
   /**
    * 회원가입
    */
-  async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await axios.post<AuthResponse>(
-      `${AUTH_BASE_URL}/api/auth/register`,
-      data
-    )
-    return response.data
+  async register(data: RegisterData) {
+    const { data: authData, error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: { name: data.name ?? null }
+      }
+    })
+    if (error) throw new Error(error.message)
+    return authData
   }
 
   /**
    * 로그아웃
    */
-  async logout(): Promise<void> {
-    try {
-      await axios.post(`${AUTH_BASE_URL}/api/auth/logout`)
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
+  async logout() {
+    const { error } = await supabase.auth.signOut()
+    if (error) console.error('[AuthService] 로그아웃 오류:', error.message)
   }
 
   /**
-   * 리프레시 토큰으로 새 액세스 토큰 발급
+   * GitHub OAuth 로그인
    */
-  async refreshAccessToken(refreshToken: string): Promise<AuthResponse> {
-    const response = await axios.post<AuthResponse>(
-      `${AUTH_BASE_URL}/api/auth/refresh`,
-      { refreshToken }
-    )
-    return response.data
-  }
-
-  /**
-   * 현재 사용자 정보 조회
-   */
-  async getCurrentUser(token: string): Promise<User> {
-    const response = await axios.get<User>(`${AUTH_BASE_URL}/api/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+  async loginWithGithub() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: `${window.location.origin}/auth/callback` }
     })
-    return response.data
+    if (error) throw new Error(error.message)
+  }
+
+  /**
+   * Google OAuth 로그인
+   */
+  async loginWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` }
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  /**
+   * 현재 세션 가져오기
+   */
+  async getSession() {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session
+  }
+
+  /**
+   * 현재 사용자 정보
+   */
+  async getCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
   }
 }
 

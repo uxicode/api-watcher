@@ -1,125 +1,77 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/lib/supabase'
 import { authService } from '@/services/auth-service'
-import type { User, LoginCredentials, RegisterData } from '@/types/auth'
-
-const TOKEN_KEY = 'api-watcher-auth-token'
-const REFRESH_TOKEN_KEY = 'api-watcher-refresh-token'
-const USER_KEY = 'api-watcher-user'
+import type { User } from '@/types/auth'
+import type { Session } from '@supabase/supabase-js'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const token = ref<string | null>(null)
-  const refreshTokenValue = ref<string | null>(null)
+  const session = ref<Session | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => !!session.value && !!user.value)
+  // api-service 인터셉터에서 token 사용하므로 computed로 노출
+  const token = computed(() => session.value?.access_token ?? null)
 
-  /**
-   * localStorage에서 토큰 로드
-   */
-  function loadTokenFromStorage() {
-    try {
-      const storedToken = localStorage.getItem(TOKEN_KEY)
-      const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY)
-      const storedUser = localStorage.getItem(USER_KEY)
-
-      if (storedToken && storedUser) {
-        token.value = storedToken
-        user.value = JSON.parse(storedUser)
+  function setSession(newSession: Session | null) {
+    session.value = newSession
+    if (newSession?.user) {
+      user.value = {
+        id: newSession.user.id,
+        email: newSession.user.email ?? '',
+        name: newSession.user.user_metadata?.name ?? null,
+        emailVerified: !!newSession.user.email_confirmed_at,
+        createdAt: newSession.user.created_at,
+        updatedAt: newSession.user.updated_at ?? newSession.user.created_at,
+        lastLoginAt: newSession.user.last_sign_in_at ?? null
       }
-      if (storedRefresh) {
-        refreshTokenValue.value = storedRefresh
-      }
-    } catch (e) {
-      console.error('Failed to load token from storage:', e)
-      clearAuth()
+    } else {
+      user.value = null
     }
   }
 
-  /**
-   * localStorage에 토큰 저장
-   */
-  function saveTokenToStorage(authToken: string, userData: User, authRefreshToken?: string) {
-    try {
-      localStorage.setItem(TOKEN_KEY, authToken)
-      localStorage.setItem(USER_KEY, JSON.stringify(userData))
-      token.value = authToken
-      user.value = userData
-      if (authRefreshToken) {
-        localStorage.setItem(REFRESH_TOKEN_KEY, authRefreshToken)
-        refreshTokenValue.value = authRefreshToken
-      }
-    } catch (e) {
-      console.error('Failed to save token to storage:', e)
-    }
-  }
-
-  /**
-   * 인증 정보 초기화
-   */
   function clearAuth() {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    token.value = null
-    refreshTokenValue.value = null
+    session.value = null
     user.value = null
     error.value = null
   }
 
-  /**
-   * 로그인
-   */
-  async function login(credentials: LoginCredentials) {
+  async function login(credentials: { email: string; password: string }) {
     isLoading.value = true
     error.value = null
-
     try {
-      const response = await authService.login(credentials)
-      saveTokenToStorage(response.accessToken, response.user, response.refreshToken)
-      return response
+      const data = await authService.login(credentials)
+      setSession(data.session)
+      return data
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.message || '로그인에 실패했습니다'
-      error.value = errorMessage
-      throw new Error(errorMessage)
+      error.value = err.message || '로그인에 실패했습니다'
+      throw err
     } finally {
       isLoading.value = false
     }
   }
 
-  /**
-   * 회원가입
-   */
-  async function register(data: RegisterData) {
+  async function register(data: { email: string; password: string; name?: string }) {
     isLoading.value = true
     error.value = null
-
     try {
-      const response = await authService.register(data)
-      saveTokenToStorage(response.accessToken, response.user, response.refreshToken)
-      return response
+      const result = await authService.register(data)
+      setSession(result.session)
+      return result
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || err.message || '회원가입에 실패했습니다'
-      error.value = errorMessage
-      throw new Error(errorMessage)
+      error.value = err.message || '회원가입에 실패했습니다'
+      throw err
     } finally {
       isLoading.value = false
     }
   }
 
-  /**
-   * 로그아웃
-   */
   async function logout() {
     isLoading.value = true
-    error.value = null
-
     try {
       await authService.logout()
-    } catch (err) {
-      console.error('Logout error:', err)
     } finally {
       clearAuth()
       isLoading.value = false
@@ -127,55 +79,39 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 리프레시 토큰으로 액세스 토큰 갱신
-   * 성공 시 true, 실패 시 false 반환 (실패하면 로그아웃)
+   * 앱 시작 시 Supabase 세션 복원 + 변경 감지
    */
-  async function refreshTokens(): Promise<boolean> {
-    const storedRefresh = refreshTokenValue.value || localStorage.getItem(REFRESH_TOKEN_KEY)
-    if (!storedRefresh) {
-      clearAuth()
-      return false
-    }
-
-    try {
-      const response = await authService.refreshAccessToken(storedRefresh)
-      saveTokenToStorage(response.accessToken, response.user, response.refreshToken)
-      return true
-    } catch {
-      clearAuth()
-      return false
-    }
+  async function checkAuth(): Promise<boolean> {
+    const currentSession = await authService.getSession()
+    setSession(currentSession)
+    return !!currentSession
   }
 
   /**
-   * 토큰 검증 및 사용자 정보 로드
+   * Supabase 자동 토큰 갱신: onAuthStateChange로 세션 업데이트
+   * App.vue에서 한 번만 호출
    */
-  async function checkAuth() {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
-    if (!storedToken) {
+  function listenAuthChanges() {
+    supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
+    })
+  }
+
+  // refreshTokens: Supabase가 자동 처리하지만 api-service 호환성을 위해 유지
+  async function refreshTokens(): Promise<boolean> {
+    const { data, error: refreshError } = await supabase.auth.refreshSession()
+    if (refreshError || !data.session) {
       clearAuth()
       return false
     }
-
-    try {
-      const userData = await authService.getCurrentUser(storedToken)
-      token.value = storedToken
-      user.value = userData
-      saveTokenToStorage(storedToken, userData)
-      return true
-    } catch {
-      // 액세스 토큰 만료 → 리프레시 토큰으로 재시도
-      return await refreshTokens()
-    }
+    setSession(data.session)
+    return true
   }
-
-  // 초기화 시 토큰 로드
-  loadTokenFromStorage()
 
   return {
     user,
     token,
-    refreshTokenValue,
+    session,
     isLoading,
     error,
     isAuthenticated,
@@ -183,8 +119,9 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     checkAuth,
-    refreshTokens,
-    loadTokenFromStorage,
-    clearAuth
+    clearAuth,
+    setSession,
+    listenAuthChanges,
+    refreshTokens
   }
 })

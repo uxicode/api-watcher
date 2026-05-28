@@ -608,10 +608,9 @@ import { Teleport } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
-import axios from 'axios'
+import { supabase } from '@/lib/supabase'
 import { useProjectStore } from '@/stores/project-store'
 import { useSettingsStore } from '@/stores/settings-store'
-import { useAuthStore } from '@/stores/auth-store'
 import DiffCard from '@/components/DiffCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProjectFormModal from '@/components/ProjectFormModal.vue'
@@ -1243,22 +1242,12 @@ async function executeRequest(key: string, endpoint: ApiEndpoint) {
       }
     }
 
-    // 백엔드 프록시를 통해 요청 (CORS 우회)
-    const authStore = useAuthStore()
-    const proxyBaseUrl = (import.meta.env.VITE_AUTH_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:3001'
+    // Supabase Edge Function 프록시를 통해 요청 (CORS 우회)
+    const { data: proxyData, error: proxyError } = await supabase.functions.invoke('proxy', {
+      body: { method, url: requestUrl, headers: targetHeaders, body: bodyData }
+    })
 
-    const proxyResponse = await axios.post(
-      `${proxyBaseUrl}/api/proxy`,
-      { method, url: requestUrl, headers: targetHeaders, body: bodyData },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {})
-        }
-      }
-    )
-
-    const proxyData = proxyResponse.data
+    if (proxyError) throw proxyError
     // 완료 시 전체 객체를 새로 할당해서 Vue 반응성 확실히 트리거
     tryItOutResponse.value[key] = {
       loading: false,

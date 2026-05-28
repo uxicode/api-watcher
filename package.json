@@ -4,17 +4,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "npm --prefix server run dev",
-    "dev:all": "concurrently -n client,server -c cyan,magenta \"npm run dev\" \"npm run dev:server\"",
-    "db:studio": "npm --prefix server run prisma:studio",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "functions:serve": "supabase functions serve",
+    "functions:deploy": "supabase functions deploy"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "axios": "^1.6.7",
     "date-fns": "^3.3.1",
     "diff": "^5.1.0",

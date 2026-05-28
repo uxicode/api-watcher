@@ -59,7 +59,7 @@ export class ApiService {
       (error) => Promise.reject(error)
     )
 
-    // 응답 인터셉터: 에러 처리 + 401 시 토큰 자동 갱신 후 재시도
+    // 응답 인터셉터: 에러 처리 + 401 시 Supabase 세션 갱신 후 재시도
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
@@ -70,7 +70,7 @@ export class ApiService {
             const url = error.config?.url || '알 수 없는 URL'
             const originalRequest = error.config as any
 
-            // 401: 리프레시 토큰으로 재시도 (한 번만, _retry 플래그로 무한루프 방지)
+            // 401: Supabase 세션 갱신 후 재시도 (한 번만)
             if (status === 401 && !originalRequest._retry) {
               originalRequest._retry = true
               const authStore = useAuthStore()

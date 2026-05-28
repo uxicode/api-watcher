@@ -3,12 +3,12 @@ export type AuthProvider = 'email' | 'github' | 'google'
 export interface User {
   id: string
   email: string
-  name?: string
+  name?: string | null
   provider?: AuthProvider
   emailVerified: boolean
   createdAt: string
   updatedAt: string
-  lastLoginAt?: string
+  lastLoginAt?: string | null
 }
 
 export interface LoginCredentials {
@@ -20,10 +20,4 @@ export interface RegisterData {
   email: string
   password: string
   name?: string
-}
-
-export interface AuthResponse {
-  user: User
-  accessToken: string
-  refreshToken: string
 }

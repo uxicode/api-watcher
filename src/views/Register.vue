@@ -124,7 +124,8 @@ async function handleRegister() {
       password: form.value.password,
       name: form.value.name || undefined
     })
-    router.push('/login')
+    // Supabase 이메일 인증이 활성화된 경우 이메일 확인 안내
+    router.push('/login?registered=1')
   } catch (err: any) {
     error.value = err.message || '회원가입에 실패했습니다'
   } finally {

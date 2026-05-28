@@ -11,7 +11,8 @@ import { useAuthStore } from '@/stores/auth-store'
 const authStore = useAuthStore()
 
 onMounted(async () => {
-  // 앱 시작 시 토큰 검증
+  // Supabase 세션 복원 + 변경 감지 등록
+  authStore.listenAuthChanges()
   await authStore.checkAuth()
 })
 </script>

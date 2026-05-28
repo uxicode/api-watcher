@@ -90,25 +90,19 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { authService } from '@/services/auth-service'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-const AUTH_BASE_URL = (import.meta.env.VITE_AUTH_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:3001'
-
-const form = ref({
-  email: '',
-  password: ''
-})
-
+const form = ref({ email: '', password: '' })
 const error = ref<string | null>(null)
 const isLoading = ref(false)
 
 async function handleLogin() {
   error.value = null
   isLoading.value = true
-
   try {
     await authStore.login(form.value)
     router.push('/')
@@ -119,27 +113,23 @@ async function handleLogin() {
   }
 }
 
-function handleSocialLogin(provider: 'github' | 'google') {
-  window.location.href = `${AUTH_BASE_URL}/api/auth/${provider}`
+async function handleSocialLogin(provider: 'github' | 'google') {
+  isLoading.value = true
+  error.value = null
+  try {
+    if (provider === 'github') await authService.loginWithGithub()
+    else await authService.loginWithGoogle()
+  } catch (err: any) {
+    error.value = err.message || `${provider} 로그인에 실패했습니다`
+    isLoading.value = false
+  }
 }
 
 onMounted(() => {
-  // 이미 로그인되어 있으면 홈으로 리다이렉트
-  if (authStore.isAuthenticated) {
-    router.push('/')
-  }
+  if (authStore.isAuthenticated) router.push('/')
 
-  // URL 파라미터에서 에러 확인
   const errorParam = route.query.error as string | undefined
-  if (errorParam) {
-    if (errorParam === 'github_auth_failed') {
-      error.value = 'GitHub 로그인에 실패했습니다'
-    } else if (errorParam === 'google_auth_failed') {
-      error.value = 'Google 로그인에 실패했습니다'
-    } else if (errorParam === 'token_generation_failed') {
-      error.value = '토큰 생성에 실패했습니다'
-    }
-  }
+  if (errorParam === 'oauth_failed') error.value = '소셜 로그인에 실패했습니다'
 })
 </script>
 

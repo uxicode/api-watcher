@@ -1,79 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth-store'
 import type { Project, Snapshot } from '@/types/project'
 import type { DiffResult } from '@/types/diff'
-import { swaggerService } from '@/services/swagger-service'
-import { diffService } from '@/services/diff-service'
-import { apiService } from '@/services/api-service'
-import { useSettingsStore } from './settings-store'
-import { mockProjects, mockSnapshots, mockDiffResults } from '@/data/mock-data'
-
-// 백엔드 API 응답 타입 (Prisma에서 반환하는 형식)
-interface ApiProject {
-  id: string
-  name: string
-  swaggerUrl: string
-  apiKey: string | null
-  apiKeyHeader: string | null
-  createdAt: string
-  updatedAt: string
-  lastCheckedAt: string | null
-  isActive: boolean
-}
-
-interface ApiSnapshot {
-  id: string
-  projectId: string
-  createdAt: string
-  data: string
-  version: string
-}
-
-interface ApiDiffResult {
-  id: string
-  projectId: string
-  previousSnapshotId: string
-  currentSnapshotId: string
-  comparedAt: string
-  endpointDiffs: unknown
-  summary: unknown
-}
-
-// API 응답을 프론트엔드 타입으로 변환
-function convertApiProject(apiProject: ApiProject): Project {
-  return {
-    id: apiProject.id,
-    name: apiProject.name,
-    swaggerUrl: apiProject.swaggerUrl,
-    apiKey: apiProject.apiKey || undefined,
-    apiKeyHeader: apiProject.apiKeyHeader || undefined,
-    createdAt: apiProject.createdAt,
-    updatedAt: apiProject.updatedAt,
-    lastCheckedAt: apiProject.lastCheckedAt || undefined,
-    isActive: apiProject.isActive
-  }
-}
-
-function convertApiSnapshot(apiSnapshot: ApiSnapshot): Snapshot {
-  return {
-    id: apiSnapshot.id,
-    projectId: apiSnapshot.projectId,
-    createdAt: apiSnapshot.createdAt,
-    data: apiSnapshot.data,
-    version: apiSnapshot.version
-  }
-}
-
-function convertApiDiffResult(apiDiff: ApiDiffResult): DiffResult {
-  return {
-    projectId: apiDiff.projectId,
-    previousSnapshotId: apiDiff.previousSnapshotId,
-    currentSnapshotId: apiDiff.currentSnapshotId,
-    comparedAt: apiDiff.comparedAt,
-    endpointDiffs: apiDiff.endpointDiffs as DiffResult['endpointDiffs'],
-    summary: apiDiff.summary as DiffResult['summary']
-  }
-}
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -83,485 +13,232 @@ export const useProjectStore = defineStore('project', () => {
   const error = ref<string | null>(null)
   const loadingProjects = ref<Set<string>>(new Set())
 
-  const settingsStore = useSettingsStore()
-  // apiBaseUrl이 설정되어 있는지 확인 (빈 문자열이 아닌 실제 값이 있는지)
-  const useBackend = computed(() => {
-    const url = settingsStore.settings.apiBaseUrl
-    const result = !!url && url.trim() !== ''
-    console.log('[ProjectStore] useBackend computed:', {
-      url,
-      result,
-      settingsStoreApiBaseUrl: settingsStore.apiBaseUrl,
-      settingsValue: settingsStore.settings
-    })
-    return result
-  })
-
-  // LocalStorage에 데이터 저장 (fallback용)
-  function saveToStorage() {
-    if (useBackend.value) return // 백엔드 사용 시 LocalStorage 저장 안 함
-    
-    try {
-      localStorage.setItem('api-watcher-projects', JSON.stringify(projects.value))
-      localStorage.setItem('api-watcher-snapshots', JSON.stringify(snapshots.value))
-      localStorage.setItem('api-watcher-diffs', JSON.stringify(diffResults.value))
-    } catch (e) {
-      console.error('Failed to save to storage:', e)
-    }
+  // ── 헬퍼 ──────────────────────────────────────────────────
+  function authUserId(): string {
+    const authStore = useAuthStore()
+    if (!authStore.user?.id) throw new Error('로그인이 필요합니다')
+    return authStore.user.id
   }
 
-  // 목데이터 로드 (개발/테스트용)
-  function loadMockData() {
-    projects.value = [...mockProjects]
-    snapshots.value = [...mockSnapshots]
-    diffResults.value = [...mockDiffResults]
-    saveToStorage()
+  function handleError(e: unknown, fallback: string): never {
+    const msg = e instanceof Error ? e.message : fallback
+    error.value = msg
+    throw new Error(msg)
   }
 
-  // LocalStorage에서 데이터 로드 (fallback용)
-  function loadFromStorage() {
-    if (useBackend.value) return // 백엔드 사용 시 LocalStorage 로드 안 함
-    
-    try {
-      const storedProjects = localStorage.getItem('api-watcher-projects')
-      if (storedProjects) {
-        projects.value = JSON.parse(storedProjects)
-      }
-      // 저장된 데이터가 없으면 빈 배열로 유지 (자동으로 목데이터 로드하지 않음)
-
-      const storedSnapshots = localStorage.getItem('api-watcher-snapshots')
-      if (storedSnapshots) {
-        snapshots.value = JSON.parse(storedSnapshots)
-      }
-
-      const storedDiffs = localStorage.getItem('api-watcher-diffs')
-      if (storedDiffs) {
-        diffResults.value = JSON.parse(storedDiffs)
-      }
-    } catch (e) {
-      console.error('Failed to load from storage:', e)
-    }
-  }
-
-  // 백엔드에서 프로젝트 목록 로드
+  // ── 프로젝트 CRUD ─────────────────────────────────────────
   async function loadProjectsFromBackend(silent = false) {
-    console.log('[loadProjectsFromBackend] 호출됨', { 
-      useBackend: useBackend.value, 
-      silent,
-      apiBaseUrl: settingsStore.apiBaseUrl 
-    })
-    
-    if (!useBackend.value) {
-      console.log('[loadProjectsFromBackend] 백엔드 미사용으로 중단')
-      return
-    }
-
     try {
       isLoading.value = true
-      if (!silent) {
-        error.value = null
-      }
+      if (!silent) error.value = null
 
-      console.log('[loadProjectsFromBackend] API 요청 시작')
-      const apiProjects = await apiService.get<ApiProject[]>('/api/projects')
-      console.log('[loadProjectsFromBackend] API 응답 받음', apiProjects)
-      
-      projects.value = apiProjects.map(convertApiProject)
-      console.log('[loadProjectsFromBackend] 프로젝트 변환 완료', projects.value.length, '개')
+      const userId = authUserId()
+      const { data, error: dbError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('userId', userId)
+        .order('updatedAt', { ascending: false })
 
-      // 스냅샷과 diff는 별도로 로드하지 않음 (필요시 개별 로드)
+      if (dbError) throw dbError
+      projects.value = (data ?? []) as Project[]
     } catch (e) {
-      if (!silent) {
-        error.value = e instanceof Error ? e.message : '프로젝트 목록을 불러오는데 실패했습니다.'
-      }
-      console.error('Failed to load projects:', e)
-      // silent 모드가 아닐 때만 에러를 던짐
-      if (!silent) {
-        throw e
-      }
+      if (!silent) handleError(e, '프로젝트 목록을 불러오는데 실패했습니다')
+      console.error('[loadProjectsFromBackend]', e)
     } finally {
       isLoading.value = false
     }
   }
 
-  // 백엔드에서 프로젝트별 스냅샷 로드
-  async function loadSnapshotsFromBackend(projectId: string) {
-    if (!useBackend.value) return
-
+  async function addProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) {
+    isLoading.value = true
+    error.value = null
     try {
-      const apiSnapshots = await apiService.get<ApiSnapshot[]>(`/api/snapshots/project/${projectId}`)
-      const convertedSnapshots = apiSnapshots.map(convertApiSnapshot)
-      
-      // 기존 스냅샷과 병합 (같은 프로젝트의 스냅샷만)
+      const userId = authUserId()
+      const now = new Date().toISOString()
+      const { data, error: dbError } = await supabase
+        .from('projects')
+        .insert({
+          id: crypto.randomUUID(),
+          name: project.name,
+          swaggerUrl: project.swaggerUrl,
+          apiKey: project.apiKey ?? null,
+          apiKeyHeader: project.apiKeyHeader ?? null,
+          userId,
+          isActive: project.isActive ?? true,
+          createdAt: now,
+          updatedAt: now
+        })
+        .select()
+        .single()
+
+      if (dbError) throw dbError
+      const newProject = data as Project
+      projects.value.push(newProject)
+      return newProject
+    } catch (e) {
+      handleError(e, '프로젝트 추가에 실패했습니다')
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function updateProject(id: string, updates: Partial<Project>) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const { data, error: dbError } = await supabase
+        .from('projects')
+        .update({ ...updates, updatedAt: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (dbError) throw dbError
+      const index = projects.value.findIndex(p => p.id === id)
+      if (index !== -1) projects.value[index] = data as Project
+    } catch (e) {
+      handleError(e, '프로젝트 업데이트에 실패했습니다')
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function deleteProject(id: string) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const { error: dbError } = await supabase.from('projects').delete().eq('id', id)
+      if (dbError) throw dbError
+      projects.value = projects.value.filter(p => p.id !== id)
+      snapshots.value = snapshots.value.filter(s => s.projectId !== id)
+      diffResults.value = diffResults.value.filter(d => d.projectId !== id)
+    } catch (e) {
+      handleError(e, '프로젝트 삭제에 실패했습니다')
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // ── 스냅샷 ────────────────────────────────────────────────
+  async function loadSnapshotsFromBackend(projectId: string) {
+    try {
+      const { data, error: dbError } = await supabase
+        .from('snapshots')
+        .select('*')
+        .eq('projectId', projectId)
+        .order('createdAt', { ascending: false })
+
+      if (dbError) throw dbError
       snapshots.value = [
         ...snapshots.value.filter(s => s.projectId !== projectId),
-        ...convertedSnapshots
+        ...(data ?? []) as Snapshot[]
       ]
     } catch (e) {
-      console.error('Failed to load snapshots:', e)
+      console.error('[loadSnapshotsFromBackend]', e)
     }
   }
 
-  // 백엔드에서 프로젝트별 diff 로드
+  // ── Diff ──────────────────────────────────────────────────
   async function loadDiffsFromBackend(projectId: string) {
-    if (!useBackend.value) return
-
     try {
-      const apiDiffs = await apiService.get<ApiDiffResult[]>(`/api/diffs/project/${projectId}`)
-      const convertedDiffs = apiDiffs.map(convertApiDiffResult)
-      
-      // 기존 diff와 병합 (같은 프로젝트의 diff만)
+      const { data, error: dbError } = await supabase
+        .from('diff_results')
+        .select('*')
+        .eq('projectId', projectId)
+        .order('comparedAt', { ascending: false })
+
+      if (dbError) throw dbError
       diffResults.value = [
         ...diffResults.value.filter(d => d.projectId !== projectId),
-        ...convertedDiffs
+        ...(data ?? []) as DiffResult[]
       ]
     } catch (e) {
-      console.error('Failed to load diffs:', e)
+      console.error('[loadDiffsFromBackend]', e)
     }
   }
 
-  // 백엔드에서 특정 diff 로드
   async function loadDiffById(diffId: string) {
-    if (!useBackend.value) return null
-
     try {
-      const apiDiff = await apiService.get<ApiDiffResult>(`/api/diffs/${diffId}`)
-      const convertedDiff = convertApiDiffResult(apiDiff)
-      
-      // 기존 diff와 병합 (같은 id가 있으면 교체, 없으면 추가)
-      const index = diffResults.value.findIndex(d => 
-        d.projectId === convertedDiff.projectId && 
-        d.currentSnapshotId === convertedDiff.currentSnapshotId
-      )
-      
-      if (index !== -1) {
-        diffResults.value[index] = convertedDiff
-      } else {
-        diffResults.value.push(convertedDiff)
-      }
-      
-      return convertedDiff
+      const { data, error: dbError } = await supabase
+        .from('diff_results')
+        .select('*')
+        .eq('id', diffId)
+        .single()
+
+      if (dbError) throw dbError
+      const diff = data as DiffResult
+      const index = diffResults.value.findIndex(d => d.currentSnapshotId === diff.currentSnapshotId)
+      if (index !== -1) diffResults.value[index] = diff
+      else diffResults.value.push(diff)
+      return diff
     } catch (e) {
-      console.error('Failed to load diff:', e)
+      console.error('[loadDiffById]', e)
       return null
     }
   }
 
-  // 프로젝트 추가
-  async function addProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) {
-    if (useBackend.value) {
-      try {
-        isLoading.value = true
-        error.value = null
-
-        const apiProject = await apiService.post<ApiProject>('/api/projects', {
-          name: project.name,
-          swaggerUrl: project.swaggerUrl,
-          apiKey: project.apiKey,
-          apiKeyHeader: project.apiKeyHeader,
-          isActive: project.isActive
-        })
-
-        const newProject = convertApiProject(apiProject)
-        projects.value.push(newProject)
-        return newProject
-      } catch (e) {
-        error.value = e instanceof Error ? e.message : '프로젝트 추가에 실패했습니다.'
-        throw e
-      } finally {
-        isLoading.value = false
-      }
-    } else {
-      // LocalStorage 사용
-      const newProject: Project = {
-        ...project,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-      projects.value.push(newProject)
-      saveToStorage()
-      return newProject
-    }
-  }
-
-  // 프로젝트 업데이트
-  async function updateProject(id: string, updates: Partial<Project>) {
-    if (useBackend.value) {
-      try {
-        isLoading.value = true
-        error.value = null
-
-        const apiProject = await apiService.put<ApiProject>(`/api/projects/${id}`, updates)
-        const updatedProject = convertApiProject(apiProject)
-
-        const index = projects.value.findIndex(p => p.id === id)
-        if (index !== -1) {
-          projects.value[index] = updatedProject
-        }
-      } catch (e) {
-        error.value = e instanceof Error ? e.message : '프로젝트 업데이트에 실패했습니다.'
-        throw e
-      } finally {
-        isLoading.value = false
-      }
-    } else {
-      // LocalStorage 사용
-      const index = projects.value.findIndex(p => p.id === id)
-      if (index !== -1) {
-        projects.value[index] = {
-          ...projects.value[index],
-          ...updates,
-          updatedAt: new Date().toISOString()
-        }
-        saveToStorage()
-      }
-    }
-  }
-
-  // 프로젝트 삭제
-  async function deleteProject(id: string) {
-    if (useBackend.value) {
-      try {
-        isLoading.value = true
-        error.value = null
-
-        await apiService.delete(`/api/projects/${id}`)
-        
-        projects.value = projects.value.filter(p => p.id !== id)
-        snapshots.value = snapshots.value.filter(s => s.projectId !== id)
-        diffResults.value = diffResults.value.filter(d => d.projectId !== id)
-      } catch (e) {
-        error.value = e instanceof Error ? e.message : '프로젝트 삭제에 실패했습니다.'
-        throw e
-      } finally {
-        isLoading.value = false
-      }
-    } else {
-      // LocalStorage 사용
-      projects.value = projects.value.filter(p => p.id !== id)
-      snapshots.value = snapshots.value.filter(s => s.projectId !== id)
-      diffResults.value = diffResults.value.filter(d => d.projectId !== id)
-      saveToStorage()
-    }
-  }
-
-  // 프로젝트 조회
-  const getProject = computed(() => {
-    return (id: string) => projects.value.find(p => p.id === id)
-  })
-
-  // 프로젝트별 로딩 상태 확인
-  const isProjectLoading = computed(() => {
-    return (projectId: string) => loadingProjects.value.has(projectId)
-  })
-
-  // Swagger 수집 및 스냅샷 생성
+  // ── Swagger 수집 (Edge Function 호출) ────────────────────
   async function collectSwagger(projectId: string) {
-    const project = projects.value.find(p => p.id === projectId)
-    if (!project) {
-      throw new Error('Project not found')
-    }
-
-    // 프로젝트별 로딩 상태 설정
     loadingProjects.value.add(projectId)
     error.value = null
-
     try {
-      if (useBackend.value) {
-        // 백엔드 API 사용
-        const response = await apiService.post<{
-          status: 'no_changes' | 'changes_detected'
-          message: string
-          snapshot?: ApiSnapshot
-          diffResult?: ApiDiffResult | null
-          lastSnapshot?: {
-            id: string
-            createdAt: string
-            version: string
-          }
-          lastCheckedAt?: string
-        }>(`/api/projects/${projectId}/collect`)
+      const { data, error: fnError } = await supabase.functions.invoke('collect-swagger', {
+        body: { projectId }
+      })
+      if (fnError) throw fnError
 
-        // ✅ 변경 없음 처리
-        if (response.status === 'no_changes') {
-          console.log(`[collectSwagger] No changes: ${response.message}`)
-          
-          // 프로젝트 정보 갱신 (lastCheckedAt 업데이트)
-          await loadProjectsFromBackend()
-          
-          // 기존 스냅샷 반환 (있다면)
-          if (response.lastSnapshot) {
-            const existingSnapshot = snapshots.value.find(s => s.id === response.lastSnapshot!.id)
-            return existingSnapshot || null
-          }
-          
-          return null
+      if (data.status === 'no_changes') {
+        await loadProjectsFromBackend(true)
+        if (data.lastSnapshot) {
+          return snapshots.value.find(s => s.id === data.lastSnapshot.id) ?? null
         }
-
-        // ✅ 변경 감지됨 - 새 스냅샷 저장
-        if (response.snapshot) {
-          const snapshot = convertApiSnapshot(response.snapshot)
-          snapshots.value.push(snapshot)
-
-          if (response.diffResult) {
-            const diffResult = convertApiDiffResult(response.diffResult)
-            diffResults.value.unshift(diffResult)
-          }
-
-          // 프로젝트 정보 갱신
-          await loadProjectsFromBackend()
-
-          return snapshot
-        }
-
         return null
-      } else {
-        // LocalStorage 사용
-        const swagger = await swaggerService.fetchProjectSwagger(project)
-        
-        if (!swaggerService.validateSwagger(swagger)) {
-          throw new Error('Invalid Swagger document')
-        }
-
-        const compressed = swaggerService.compressSwagger(swagger)
-
-        // ✅ 중복 저장 방지: 이전 스냅샷과 비교
-        const previousSnapshots = snapshots.value
-          .filter(s => s.projectId === projectId)
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-        const previousSnapshot = previousSnapshots[0]
-
-        // ✅ 내용이 100% 동일하면 저장하지 않고 종료
-        if (previousSnapshot && previousSnapshot.data === compressed) {
-          console.log(`[collectSwagger] No changes detected for project ${projectId}`)
-          
-          // 프로젝트의 lastCheckedAt만 업데이트
-          const projectIndex = projects.value.findIndex(p => p.id === projectId)
-          if (projectIndex !== -1) {
-            projects.value[projectIndex] = {
-              ...projects.value[projectIndex],
-              lastCheckedAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }
-          }
-          
-          saveToStorage()
-          
-          return previousSnapshot // 기존 스냅샷 반환
-        }
-
-        // ✅ 내용이 다르면 새 스냅샷 저장
-        console.log(`[collectSwagger] Changes detected for project ${projectId}, creating new snapshot`)
-
-        const snapshot: Snapshot = {
-          id: crypto.randomUUID(),
-          projectId,
-          createdAt: new Date().toISOString(),
-          data: compressed,
-          version: swagger.info.version
-        }
-
-        snapshots.value.push(snapshot)
-
-        // 이전 스냅샷과 비교 (Diff 생성)
-
-        if (previousSnapshots.length > 0) {
-          const previousSnapshot = previousSnapshots[0]
-          const previousSwagger = swaggerService.decompressSwagger(previousSnapshot.data)
-          
-          const diffResult = diffService.compareSwaggerDocuments(
-            previousSwagger,
-            swagger,
-            projectId,
-            previousSnapshot.id,
-            snapshot.id
-          )
-
-          diffResults.value.unshift(diffResult)
-        }
-
-        // 프로젝트 업데이트 시간 갱신
-        await updateProject(projectId, { lastCheckedAt: snapshot.createdAt })
-
-        saveToStorage()
-        return snapshot
       }
+
+      if (data.snapshot) {
+        snapshots.value.push(data.snapshot as Snapshot)
+        if (data.diffResult) diffResults.value.unshift(data.diffResult as DiffResult)
+        await loadProjectsFromBackend(true)
+        return data.snapshot as Snapshot
+      }
+
+      return null
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Unknown error'
-      throw e
+      handleError(e, 'Swagger 수집에 실패했습니다')
     } finally {
       loadingProjects.value.delete(projectId)
     }
   }
 
-  // 프로젝트별 스냅샷 조회
-  const getSnapshotsByProject = computed(() => {
-    return (projectId: string) => {
-      return snapshots.value
-        .filter(s => s.projectId === projectId)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    }
-  })
+  // ── Computed ──────────────────────────────────────────────
+  const getProject = computed(() => (id: string) => projects.value.find(p => p.id === id))
+  const isProjectLoading = computed(() => (id: string) => loadingProjects.value.has(id))
+  const getSnapshotsByProject = computed(() => (id: string) =>
+    snapshots.value.filter(s => s.projectId === id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  )
+  const getLatestDiff = computed(() => (id: string) => diffResults.value.find(d => d.projectId === id))
+  const getDiffsByProject = computed(() => (id: string) =>
+    diffResults.value.filter(d => d.projectId === id).sort((a, b) => new Date(b.comparedAt).getTime() - new Date(a.comparedAt).getTime())
+  )
 
-  // 프로젝트별 최신 Diff 조회
-  const getLatestDiff = computed(() => {
-    return (projectId: string) => {
-      return diffResults.value.find(d => d.projectId === projectId)
-    }
-  })
-
-  // 프로젝트별 모든 Diff 조회
-  const getDiffsByProject = computed(() => {
-    return (projectId: string) => {
-      return diffResults.value
-        .filter(d => d.projectId === projectId)
-        .sort((a, b) => new Date(b.comparedAt).getTime() - new Date(a.comparedAt).getTime())
-    }
-  })
-
-  // 초기화 (에러 발생 시 조용히 처리)
+  // ── 초기화 ────────────────────────────────────────────────
   async function initialize() {
-    console.log('[initialize] 시작', { useBackend: useBackend.value })
-    if (useBackend.value) {
-      // 백엔드 사용 시 조용히 로드 시도 (에러 발생해도 던지지 않음)
-      console.log('[initialize] 백엔드 모드 - loadProjectsFromBackend 호출')
+    const authStore = useAuthStore()
+    if (authStore.isAuthenticated) {
       await loadProjectsFromBackend(true)
-    } else {
-      console.log('[initialize] LocalStorage 모드 - loadFromStorage 호출')
-      loadFromStorage()
     }
-    console.log('[initialize] 완료')
   }
 
-  // 초기화 실행 (에러가 발생해도 앱이 중단되지 않도록)
-  initialize().catch((error) => {
-    // 초기화 실패 시 조용히 처리 (이미 loadProjectsFromBackend에서 처리됨)
-    console.error('[initialize] 초기화 실패:', error)
-  })
+  initialize().catch(e => console.error('[initialize]', e))
 
   return {
-    projects,
-    snapshots,
-    diffResults,
-    isLoading,
-    error,
-    loadingProjects,
-    isProjectLoading,
-    addProject,
-    updateProject,
-    deleteProject,
-    getProject,
+    projects, snapshots, diffResults, isLoading, error, loadingProjects,
+    isProjectLoading, getProject,
+    addProject, updateProject, deleteProject,
     collectSwagger,
-    getSnapshotsByProject,
-    getLatestDiff,
-    getDiffsByProject,
-    loadMockData,
-    loadProjectsFromBackend,
-    loadSnapshotsFromBackend,
-    loadDiffsFromBackend,
-    loadDiffById,
+    getSnapshotsByProject, getLatestDiff, getDiffsByProject,
+    loadProjectsFromBackend, loadSnapshotsFromBackend,
+    loadDiffsFromBackend, loadDiffById,
     initialize
   }
 })
