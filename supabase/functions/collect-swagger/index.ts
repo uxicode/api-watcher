@@ -1,9 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { parse as parseYaml } from 'https://esm.sh/js-yaml@4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 // ── 타입 정의 ──────────────────────────────────────────────
@@ -170,15 +170,10 @@ Deno.serve(async (req) => {
     const responseText = await swaggerRes.text()
     let swagger: SwaggerDocument
     try {
-      const contentType = swaggerRes.headers.get('content-type') ?? ''
-      if (contentType.includes('yaml') || contentType.includes('yml') || responseText.trimStart().startsWith('openapi:') || responseText.trimStart().startsWith('swagger:')) {
-        swagger = parseYaml(responseText) as SwaggerDocument
-      } else {
-        swagger = JSON.parse(responseText) as SwaggerDocument
-      }
+      swagger = JSON.parse(responseText) as SwaggerDocument
     } catch (parseErr) {
       return new Response(
-        JSON.stringify({ error: `Swagger 문서 파싱 실패 (JSON/YAML 형식이 아닙니다): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` }),
+        JSON.stringify({ error: `Swagger 문서 파싱 실패 (JSON 형식이 필요합니다): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` }),
         { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
