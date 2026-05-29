@@ -1417,7 +1417,7 @@ onMounted(async () => {
     cursor: pointer;
     user-select: none;
     padding: $spacing-sm;
-    margin: -$spacing-sm;
+    /* margin: -$spacing-sm; */
     border-radius: $radius-md;
     transition: background 0.2s;
 
@@ -2067,8 +2067,8 @@ onMounted(async () => {
 .authorize-panel {
   background: var(--bg-primary);
   border: 1px solid var(--color-border);
-  border-top: none;
-  border-radius: 0 0 $radius-md $radius-md;
+  /* border-top: none; */
+  border-radius: $radius-md;
   padding: $spacing-md;
   margin-bottom: $spacing-sm;
 }

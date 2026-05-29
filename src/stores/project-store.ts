@@ -26,6 +26,25 @@ export const useProjectStore = defineStore('project', () => {
     throw new Error(msg)
   }
 
+  async function parseFunctionInvokeError(fnError: unknown, data: unknown): Promise<string> {
+    const fromData = (data as { error?: string } | null)?.error
+    if (fromData) return fromData
+
+    if (fnError && typeof fnError === 'object' && 'context' in fnError) {
+      const context = (fnError as { context: Response }).context
+      if (context instanceof Response) {
+        try {
+          const body = await context.json() as { error?: string }
+          if (body?.error) return body.error
+        } catch {
+          // response body 파싱 실패 시 fallback 사용
+        }
+      }
+    }
+
+    return fnError instanceof Error ? fnError.message : 'Edge Function 호출 실패'
+  }
+
   // ── 프로젝트 CRUD ─────────────────────────────────────────
   async function loadProjectsFromBackend(silent = false) {
     try {
@@ -185,10 +204,7 @@ export const useProjectStore = defineStore('project', () => {
       const { data, error: fnError } = await supabase.functions.invoke('collect-swagger', {
         body: { projectId }
       })
-      if (fnError) {
-        const detail = (data as { error?: string } | null)?.error
-        throw new Error(detail ?? fnError.message)
-      }
+      if (fnError) throw new Error(await parseFunctionInvokeError(fnError, data))
 
       if (data.status === 'no_changes') {
         await loadProjectsFromBackend(true)

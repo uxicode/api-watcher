@@ -152,8 +152,8 @@ Deno.serve(async (req) => {
     if (projectError || !project) return new Response(JSON.stringify({ error: 'Project not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     if (project.userId !== user.id) return new Response(JSON.stringify({ error: '권한이 없습니다' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-    // Swagger 문서 가져오기
-    const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+    // Swagger 문서 가져오기 (GET 요청에 Content-Type을 넣으면 일부 서버가 거부함)
+    const fetchHeaders: Record<string, string> = { Accept: 'application/json, application/yaml, */*' }
     if (project.apiKey && project.apiKeyHeader) fetchHeaders[project.apiKeyHeader] = project.apiKey
 
     let swaggerRes: Response
