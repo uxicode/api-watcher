@@ -185,7 +185,10 @@ export const useProjectStore = defineStore('project', () => {
       const { data, error: fnError } = await supabase.functions.invoke('collect-swagger', {
         body: { projectId }
       })
-      if (fnError) throw fnError
+      if (fnError) {
+        const detail = (data as { error?: string } | null)?.error
+        throw new Error(detail ?? fnError.message)
+      }
 
       if (data.status === 'no_changes') {
         await loadProjectsFromBackend(true)

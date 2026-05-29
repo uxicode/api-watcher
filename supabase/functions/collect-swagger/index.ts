@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { parse as parseYaml } from 'https://esm.sh/js-yaml@4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -155,10 +156,32 @@ Deno.serve(async (req) => {
     const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
     if (project.apiKey && project.apiKeyHeader) fetchHeaders[project.apiKeyHeader] = project.apiKey
 
-    const swaggerRes = await fetch(project.swaggerUrl, { headers: fetchHeaders })
+    let swaggerRes: Response
+    try {
+      swaggerRes = await fetch(project.swaggerUrl, { headers: fetchHeaders })
+    } catch (fetchErr) {
+      return new Response(
+        JSON.stringify({ error: `Swagger URL에 연결할 수 없습니다: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     if (!swaggerRes.ok) return new Response(JSON.stringify({ error: `Swagger 문서를 가져올 수 없습니다: ${swaggerRes.status}` }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-    const swagger: SwaggerDocument = await swaggerRes.json()
+    const responseText = await swaggerRes.text()
+    let swagger: SwaggerDocument
+    try {
+      const contentType = swaggerRes.headers.get('content-type') ?? ''
+      if (contentType.includes('yaml') || contentType.includes('yml') || responseText.trimStart().startsWith('openapi:') || responseText.trimStart().startsWith('swagger:')) {
+        swagger = parseYaml(responseText) as SwaggerDocument
+      } else {
+        swagger = JSON.parse(responseText) as SwaggerDocument
+      }
+    } catch (parseErr) {
+      return new Response(
+        JSON.stringify({ error: `Swagger 문서 파싱 실패 (JSON/YAML 형식이 아닙니다): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const compressed = JSON.stringify(swagger)
 
     // 이전 스냅샷 조회
@@ -178,7 +201,7 @@ Deno.serve(async (req) => {
     const { data: snapshot, error: snapError } = await supabase.from('snapshots')
       .insert({ id: snapshotId, projectId, data: compressed, version: swagger.info.version, createdAt: now })
       .select().single()
-    if (snapError || !snapshot) throw new Error('스냅샷 저장 실패')
+    if (snapError || !snapshot) throw new Error(`스냅샷 저장 실패: ${snapError?.message ?? 'unknown'}`)
 
     // Diff 계산 및 저장
     let diffResult = null
