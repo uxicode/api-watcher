@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "projects" (
     "swaggerUrl"    TEXT        NOT NULL,
     "apiKey"        TEXT,
     "apiKeyHeader"  TEXT,
-    "userId"        TEXT,                    -- Supabase auth.users.id (UUID)
+    "userId"        TEXT,
     "createdAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "lastCheckedAt" TIMESTAMPTZ,
@@ -71,9 +71,9 @@ ALTER TABLE "diff_results"
     FOREIGN KEY ("currentSnapshotId") REFERENCES "snapshots"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS "snapshots_projectId_idx"          ON "snapshots"("projectId");
-CREATE INDEX IF NOT EXISTS "snapshots_projectId_createdAt_idx" ON "snapshots"("projectId", "createdAt");
-CREATE INDEX IF NOT EXISTS "diff_results_projectId_idx"        ON "diff_results"("projectId");
+CREATE INDEX IF NOT EXISTS "snapshots_projectId_idx"              ON "snapshots"("projectId");
+CREATE INDEX IF NOT EXISTS "snapshots_projectId_createdAt_idx"    ON "snapshots"("projectId", "createdAt");
+CREATE INDEX IF NOT EXISTS "diff_results_projectId_idx"           ON "diff_results"("projectId");
 CREATE INDEX IF NOT EXISTS "diff_results_projectId_comparedAt_idx" ON "diff_results"("projectId", "comparedAt");
 
 
