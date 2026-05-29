@@ -610,7 +610,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
 import { supabase } from '@/lib/supabase'
 import { useProjectStore } from '@/stores/project-store'
-import { useSettingsStore } from '@/stores/settings-store'
+import { useAuthStore } from '@/stores/auth-store'
 import DiffCard from '@/components/DiffCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProjectFormModal from '@/components/ProjectFormModal.vue'
@@ -1272,13 +1272,10 @@ function getParamsByIn(endpoint: ApiEndpoint, inType: string): any[] {
 
 onMounted(async () => {
   // 프로젝트가 없으면 백엔드에서 로드 시도
+  const authStore = useAuthStore()
   if (!project.value) {
-    const settingsStore = useSettingsStore()
-    if (settingsStore.hasApiConfigured) {
-      // 프로젝트 목록을 다시 로드
+    if (authStore.isAuthenticated) {
       await store.loadProjectsFromBackend()
-      
-      // 여전히 프로젝트가 없으면 홈으로
       if (!store.getProject(projectId)) {
         router.push('/')
         return
@@ -1289,9 +1286,7 @@ onMounted(async () => {
     }
   }
 
-  // 백엔드 사용 시 스냅샷과 diff 로드
-  const settingsStore = useSettingsStore()
-  if (settingsStore.hasApiConfigured) {
+  if (authStore.isAuthenticated) {
     await store.loadSnapshotsFromBackend(projectId)
     await store.loadDiffsFromBackend(projectId)
   }

@@ -377,7 +377,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project-store'
-import { useSettingsStore } from '@/stores/settings-store'
+import { useAuthStore } from '@/stores/auth-store'
 import { DIFF_TYPE } from '@/types/diff'
 import type { EndpointDiff, DiffChange } from '@/types/diff'
 import { generateTypeScriptType } from '@/utils/schema-to-typescript'
@@ -386,7 +386,7 @@ import type { SwaggerSchema } from '@/types/swagger'
 const route = useRoute()
 const router = useRouter()
 const store = useProjectStore()
-const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 
 const projectId = route.params.projectId as string
 const snapshotId = route.params.snapshotId as string
@@ -703,7 +703,7 @@ onMounted(async () => {
   }
 
   // diffResult가 없으면 백엔드에서 로드 시도
-  if (!diffResult.value && settingsStore.hasApiConfigured) {
+  if (!diffResult.value && authStore.isAuthenticated) {
     // 먼저 프로젝트의 모든 diff를 로드
     await store.loadDiffsFromBackend(projectId)
     
