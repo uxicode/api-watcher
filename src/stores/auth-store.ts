@@ -57,11 +57,22 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = null
     try {
-      const result = await authService.register(data)
-      setSession(result.session)
-      return result
+      return await authService.register(data)
     } catch (err: any) {
       error.value = err.message || '회원가입에 실패했습니다'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function resendSignupVerification(email: string) {
+    isLoading.value = true
+    error.value = null
+    try {
+      await authService.resendSignupVerification(email)
+    } catch (err: any) {
+      error.value = err.message || '인증 메일 재전송에 실패했습니다'
       throw err
     } finally {
       isLoading.value = false
@@ -117,6 +128,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     register,
+    resendSignupVerification,
     logout,
     checkAuth,
     clearAuth,

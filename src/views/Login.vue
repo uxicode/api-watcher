@@ -7,8 +7,29 @@
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
+        <div v-if="successMessage" class="success-message">
+          {{ successMessage }}
+        </div>
+
         <div v-if="error" class="error-message">
           {{ error }}
+        </div>
+
+        <div v-if="showVerificationPanel" class="verification-panel">
+          <p class="verification-text">
+            이메일 인증이 필요합니다. 메일함에서 인증 링크를 확인해주세요.
+          </p>
+          <button
+            type="button"
+            class="btn btn-secondary btn-block"
+            :disabled="isResending || !form.email"
+            @click="handleResendVerification"
+          >
+            {{ isResending ? '재전송 중...' : '인증 메일 다시 보내기' }}
+          </button>
+          <p v-if="resendMessage" class="resend-message">
+            {{ resendMessage }}
+          </p>
         </div>
 
         <div class="form-group">
@@ -98,18 +119,69 @@ const authStore = useAuthStore()
 
 const form = ref({ email: '', password: '' })
 const error = ref<string | null>(null)
+const successMessage = ref<string | null>(null)
+const resendMessage = ref<string | null>(null)
+const showVerificationPanel = ref(false)
 const isLoading = ref(false)
+const isResending = ref(false)
+
+function isEmailNotConfirmed(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return normalized.includes('email not confirmed') || normalized.includes('email_not_confirmed')
+}
+
+function applyRegisteredQuery() {
+  if (route.query.registered !== '1') return
+
+  const email = route.query.email as string | undefined
+  if (email) form.value.email = email
+
+  if (route.query.verify === '1') {
+    successMessage.value = '회원가입이 완료되었습니다. 이메일 인증 후 로그인해주세요.'
+    showVerificationPanel.value = true
+    return
+  }
+
+  successMessage.value = '회원가입이 완료되었습니다. 로그인해주세요.'
+}
 
 async function handleLogin() {
   error.value = null
+  resendMessage.value = null
   isLoading.value = true
   try {
     await authStore.login(form.value)
     router.push('/')
   } catch (err: any) {
-    error.value = err.message || '로그인에 실패했습니다'
+    const message = err.message || '로그인에 실패했습니다'
+    error.value = message
+
+    if (isEmailNotConfirmed(message)) {
+      showVerificationPanel.value = true
+      successMessage.value = '이메일 인증이 완료되지 않았습니다. 인증 후 다시 로그인해주세요.'
+    }
   } finally {
     isLoading.value = false
+  }
+}
+
+async function handleResendVerification() {
+  if (!form.value.email) {
+    error.value = '인증 메일을 재전송하려면 이메일을 입력해주세요.'
+    return
+  }
+
+  error.value = null
+  resendMessage.value = null
+  isResending.value = true
+
+  try {
+    await authStore.resendSignupVerification(form.value.email)
+    resendMessage.value = '인증 메일을 다시 보냈습니다. 메일함을 확인해주세요.'
+  } catch (err: any) {
+    error.value = err.message || '인증 메일 재전송에 실패했습니다'
+  } finally {
+    isResending.value = false
   }
 }
 
@@ -127,6 +199,8 @@ async function handleSocialLogin(provider: 'github' | 'google') {
 
 onMounted(() => {
   if (authStore.isAuthenticated) router.push('/')
+
+  applyRegisteredQuery()
 
   const errorParam = route.query.error as string | undefined
   if (errorParam === 'oauth_failed') error.value = '소셜 로그인에 실패했습니다'
@@ -170,6 +244,15 @@ onMounted(() => {
 }
 
 .login-form {
+  .success-message {
+    background-color: #dcfce7;
+    color: #166534;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    margin-bottom: $spacing-lg;
+    font-size: 0.875rem;
+  }
+
   .error-message {
     background-color: #fee2e2;
     color: var(--color-danger);
@@ -177,6 +260,27 @@ onMounted(() => {
     border-radius: $radius-md;
     margin-bottom: $spacing-lg;
     font-size: 0.875rem;
+  }
+
+  .verification-panel {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: $radius-md;
+    padding: $spacing-md;
+    margin-bottom: $spacing-lg;
+
+    .verification-text {
+      color: var(--color-text-secondary);
+      font-size: 0.875rem;
+      margin-bottom: $spacing-md;
+      line-height: 1.5;
+    }
+
+    .resend-message {
+      margin-top: $spacing-md;
+      color: #166534;
+      font-size: 0.875rem;
+    }
   }
 
   .form-group {

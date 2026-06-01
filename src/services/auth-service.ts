@@ -31,6 +31,20 @@ class AuthService {
   }
 
   /**
+   * 회원가입 확인 메일 재전송
+   */
+  async resendSignupVerification(email: string) {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  /**
    * 로그아웃
    */
   async logout() {

@@ -119,13 +119,27 @@ async function handleRegister() {
   isLoading.value = true
 
   try {
-    await authStore.register({
+    const result = await authStore.register({
       email: form.value.email,
       password: form.value.password,
       name: form.value.name || undefined
     })
-    // Supabase 이메일 인증이 활성화된 경우 이메일 확인 안내
-    router.push('/login?registered=1')
+
+    const needsVerification = !result.user?.email_confirmed_at
+
+    // signUp 직후 자동 세션이 생기면 로그인 페이지로 이동하기 전 홈으로 리다이렉트될 수 있음
+    if (authStore.isAuthenticated) {
+      await authStore.logout()
+    }
+
+    await router.push({
+      path: '/login',
+      query: {
+        registered: '1',
+        email: form.value.email,
+        ...(needsVerification ? { verify: '1' } : {})
+      }
+    })
   } catch (err: any) {
     error.value = err.message || '회원가입에 실패했습니다'
   } finally {
