@@ -196,7 +196,7 @@
                   v-for="(endpoint, index) in group"
                   :key="`${tagName}-${index}`"
                   class="api-item"
-                  :class="[{ expanded: expandedApiIndex === `${tagName}-${index}` }, `api-item-${endpoint.method.toLowerCase()}`]"
+                  :class="[{ expanded: expandedApiKeys.has(`${tagName}-${index}`) }, `api-item-${endpoint.method.toLowerCase()}`]"
                   @click.stop="toggleApiDetail(`${tagName}-${index}`)"
                 >
                   <div class="api-main">
@@ -209,14 +209,14 @@
                         {{ endpoint.summary }}
                       </div>
                     </div>
-                    <div class="api-expand-icon" :class="{ expanded: expandedApiIndex === `${tagName}-${index}` }">
+                    <div class="api-expand-icon" :class="{ expanded: expandedApiKeys.has(`${tagName}-${index}`) }">
                       <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     </div>
                   </div>
                   
-                  <div v-if="expandedApiIndex === `${tagName}-${index}`" class="api-details" @click.stop>
+                  <div v-if="expandedApiKeys.has(`${tagName}-${index}`)" class="api-details" @click.stop>
 
                     <!-- Try it out 버튼 -->
                     <div class="try-it-out-header">
@@ -623,7 +623,7 @@ const store = useProjectStore()
 const showDeleteDialog = ref(false)
 const showEditModal = ref(false)
 const showApiList = ref(true) // API 목록 토글 상태
-const expandedApiIndex = ref<string | null>(null) // 확장된 API 인덱스 (태그-인덱스 형식)
+const expandedApiKeys = ref<Set<string>>(new Set()) // 확장된 API 키 (태그-인덱스)
 const expandedTags = ref<Set<string>>(new Set()) // 확장된 태그들
 
 const projectId = route.params.id as string
@@ -871,11 +871,12 @@ function toggleTagGroup(tagName: string) {
 }
 
 function toggleApiDetail(key: string) {
-  if (expandedApiIndex.value === key) {
-    expandedApiIndex.value = null
+  if (expandedApiKeys.value.has(key)) {
+    expandedApiKeys.value.delete(key)
   } else {
-    expandedApiIndex.value = key
+    expandedApiKeys.value.add(key)
   }
+  expandedApiKeys.value = new Set(expandedApiKeys.value)
 }
 
 function formatJson(obj: any): string {
