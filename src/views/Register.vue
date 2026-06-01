@@ -141,7 +141,11 @@ async function handleRegister() {
       }
     })
   } catch (err: any) {
-    error.value = err.message || '회원가입에 실패했습니다'
+    if (err.code.includes('over_email_send_rate_limit')) {
+      error.value = '인증 메일 전송 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.'
+    } else {
+      error.value = err.message || '회원가입에 실패했습니다'
+    }
   } finally {
     isLoading.value = false
   }
