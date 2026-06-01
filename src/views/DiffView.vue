@@ -83,42 +83,12 @@
               v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
               class="changes-list"
             >
-              <div
+              <DiffChangeItem
                 v-for="(change, changeIndex) in endpointDiff.changes"
                 :key="changeIndex"
-                class="change-item"
-                :class="`change-${change.type}`"
-              >
-                <div class="change-header">
-                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
-                  <span class="change-path">{{ change.path }}</span>
-                </div>
-                <div class="change-description">{{ change.description }}</div>
-                <div v-if="change.oldValue" class="change-value old-value">
-                  <div class="value-label">이전 값:</div>
-                  <pre>{{ formatValue(change.oldValue) }}</pre>
-                </div>
-                <div v-if="change.newValue" class="change-value new-value">
-                  <div class="value-label">새 값:</div>
-                  <pre>{{ formatValue(change.newValue) }}</pre>
-                </div>
-                <div
-                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
-                  class="typescript-type"
-                >
-                  <div class="type-header">
-                    <span class="type-label">TypeScript 타입:</span>
-                    <button
-                      class="btn-copy"
-                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
-                      title="클립보드에 복사"
-                    >
-                      📋 복사
-                    </button>
-                  </div>
-                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
-                </div>
-              </div>
+                :change="change"
+                :endpoint-diff="endpointDiff"
+              />
             </div>
           </div>
         </div>
@@ -165,42 +135,12 @@
               v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
               class="changes-list"
             >
-              <div
+              <DiffChangeItem
                 v-for="(change, changeIndex) in endpointDiff.changes"
                 :key="changeIndex"
-                class="change-item"
-                :class="`change-${change.type}`"
-              >
-                <div class="change-header">
-                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
-                  <span class="change-path">{{ change.path }}</span>
-                </div>
-                <div class="change-description">{{ change.description }}</div>
-                <div v-if="change.oldValue" class="change-value old-value">
-                  <div class="value-label">이전 값:</div>
-                  <pre>{{ formatValue(change.oldValue) }}</pre>
-                </div>
-                <div v-if="change.newValue" class="change-value new-value">
-                  <div class="value-label">새 값:</div>
-                  <pre>{{ formatValue(change.newValue) }}</pre>
-                </div>
-                <div
-                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
-                  class="typescript-type"
-                >
-                  <div class="type-header">
-                    <span class="type-label">TypeScript 타입:</span>
-                    <button
-                      class="btn-copy"
-                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
-                      title="클립보드에 복사"
-                    >
-                      📋 복사
-                    </button>
-                  </div>
-                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
-                </div>
-              </div>
+                :change="change"
+                :endpoint-diff="endpointDiff"
+              />
             </div>
           </div>
         </div>
@@ -247,42 +187,12 @@
               v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
               class="changes-list"
             >
-              <div
+              <DiffChangeItem
                 v-for="(change, changeIndex) in endpointDiff.changes"
                 :key="changeIndex"
-                class="change-item"
-                :class="`change-${change.type}`"
-              >
-                <div class="change-header">
-                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
-                  <span class="change-path">{{ change.path }}</span>
-                </div>
-                <div class="change-description">{{ change.description }}</div>
-                <div v-if="change.oldValue" class="change-value old-value">
-                  <div class="value-label">이전 값:</div>
-                  <pre>{{ formatValue(change.oldValue) }}</pre>
-                </div>
-                <div v-if="change.newValue" class="change-value new-value">
-                  <div class="value-label">새 값:</div>
-                  <pre>{{ formatValue(change.newValue) }}</pre>
-                </div>
-                <div
-                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
-                  class="typescript-type"
-                >
-                  <div class="type-header">
-                    <span class="type-label">TypeScript 타입:</span>
-                    <button
-                      class="btn-copy"
-                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
-                      title="클립보드에 복사"
-                    >
-                      📋 복사
-                    </button>
-                  </div>
-                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
-                </div>
-              </div>
+                :change="change"
+                :endpoint-diff="endpointDiff"
+              />
             </div>
           </div>
         </div>
@@ -329,42 +239,12 @@
               v-show="expandedEndpoints[getEndpointIndex(endpointDiff)]"
               class="changes-list"
             >
-              <div
+              <DiffChangeItem
                 v-for="(change, changeIndex) in endpointDiff.changes"
                 :key="changeIndex"
-                class="change-item"
-                :class="`change-${change.type}`"
-              >
-                <div class="change-header">
-                  <span class="change-type">{{ changeTypeLabel[change.type] }}</span>
-                  <span class="change-path">{{ change.path }}</span>
-                </div>
-                <div class="change-description">{{ change.description }}</div>
-                <div v-if="change.oldValue" class="change-value old-value">
-                  <div class="value-label">이전 값:</div>
-                  <pre>{{ formatValue(change.oldValue) }}</pre>
-                </div>
-                <div v-if="change.newValue" class="change-value new-value">
-                  <div class="value-label">새 값:</div>
-                  <pre>{{ formatValue(change.newValue) }}</pre>
-                </div>
-                <div
-                  v-if="change.type !== DIFF_TYPE.REMOVED && change.newValue && getTypeScriptType(change, endpointDiff)"
-                  class="typescript-type"
-                >
-                  <div class="type-header">
-                    <span class="type-label">TypeScript 타입:</span>
-                    <button
-                      class="btn-copy"
-                      @click="copyToClipboard(getTypeScriptType(change, endpointDiff))"
-                      title="클립보드에 복사"
-                    >
-                      📋 복사
-                    </button>
-                  </div>
-                  <pre class="type-code">{{ getTypeScriptType(change, endpointDiff) }}</pre>
-                </div>
-              </div>
+                :change="change"
+                :endpoint-diff="endpointDiff"
+              />
             </div>
           </div>
         </div>
@@ -379,9 +259,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { DIFF_TYPE } from '@/types/diff'
-import type { EndpointDiff, DiffChange } from '@/types/diff'
-import { generateTypeScriptType } from '@/utils/schema-to-typescript'
-import type { SwaggerSchema } from '@/types/swagger'
+import type { EndpointDiff } from '@/types/diff'
+import DiffChangeItem from '@/components/DiffChangeItem.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -522,174 +401,6 @@ function getEndpointIndex(endpointDiff: EndpointDiff): number {
   return endpointDiffsWithTags.value.findIndex(
     d => d.method === endpointDiff.method && d.path === endpointDiff.path
   )
-}
-
-const changeTypeLabel = {
-  [DIFF_TYPE.ADDED]: '추가',
-  [DIFF_TYPE.REMOVED]: '삭제',
-  [DIFF_TYPE.MODIFIED]: '수정',
-  [DIFF_TYPE.UNCHANGED]: '변경 없음'
-}
-
-function formatValue(value: unknown): string {
-  if (typeof value === 'object' && value !== null) {
-    return JSON.stringify(value, null, 2)
-  }
-  return String(value)
-}
-
-function getTypeScriptType(change: DiffChange, endpointDiff: EndpointDiff): string {
-  if (!change.newValue || typeof change.newValue !== 'object') {
-    return ''
-  }
-
-  // 디버깅: change 객체 구조 확인
-  // if (import.meta.env.DEV) {
-  //   console.log('getTypeScriptType:', {
-  //     path: change.path,
-  //     type: change.type,
-  //     hasNewValue: !!change.newValue,
-  //     newValueKeys: change.newValue ? Object.keys(change.newValue as object) : []
-  //   })
-  // }
-
-  try {
-    // Response 변경사항 처리 (path 형식: "GET /pets/responses/200")
-    const responseMatch = change.path.match(/responses\/(\d+)/)
-    if (responseMatch) {
-      const statusCode = responseMatch[1]
-      const responseValue = change.newValue as {
-        content?: {
-          [contentType: string]: {
-            schema?: SwaggerSchema
-          }
-        }
-        description?: string
-        schema?: SwaggerSchema // 직접 schema가 있는 경우 (레거시)
-      }
-
-      // content 구조가 있는 경우 (일반적인 경우)
-      if (responseValue.content) {
-        const jsonContent = responseValue.content['application/json'] || 
-                           responseValue.content['*/*'] ||
-                           Object.values(responseValue.content)[0] // 첫 번째 content 타입 사용
-        if (jsonContent?.schema) {
-          return generateTypeScriptType(
-            jsonContent.schema,
-            statusCode,
-            endpointDiff.path,
-            endpointDiff.method,
-            'Response'
-          )
-        }
-      }
-      
-      // 직접 schema가 있는 경우 (레거시 또는 간단한 구조)
-      if (responseValue.schema) {
-        return generateTypeScriptType(
-          responseValue.schema,
-          statusCode,
-          endpointDiff.path,
-          endpointDiff.method,
-          'Response'
-        )
-      }
-      
-      return ''
-    }
-
-    // Request Body 변경사항 처리
-    // path 형식: "POST /pets/requestBody" 또는 전체 endpoint 추가 시 "POST /pets"
-    if (change.path.includes('requestBody') || 
-        (change.type === DIFF_TYPE.ADDED && (change.newValue as { requestBody?: unknown })?.requestBody)) {
-      let requestBodyValue: {
-        content?: {
-          [contentType: string]: {
-            schema?: SwaggerSchema
-          }
-        }
-        required?: boolean
-      }
-
-      // 전체 endpoint 추가인 경우 requestBody 추출
-      if (change.path.includes('requestBody')) {
-        requestBodyValue = change.newValue as typeof requestBodyValue
-      } else {
-        // 전체 endpoint 객체에서 requestBody 추출
-        const endpointValue = change.newValue as { requestBody?: typeof requestBodyValue }
-        if (endpointValue.requestBody) {
-          requestBodyValue = endpointValue.requestBody
-        } else {
-          return ''
-        }
-      }
-
-      if (requestBodyValue.content) {
-        const jsonContent = requestBodyValue.content['application/json'] || requestBodyValue.content['*/*']
-        if (jsonContent?.schema) {
-          return generateTypeScriptType(
-            jsonContent.schema,
-            '',
-            endpointDiff.path,
-            endpointDiff.method,
-            'Request'
-          )
-        }
-      }
-      return ''
-    }
-
-    // Parameter 변경사항 처리 (path 형식: "GET /pets/parameters/limit")
-    const paramMatch = change.path.match(/parameters\/([^/\s]+)/)
-    if (paramMatch) {
-      const paramName = paramMatch[1]
-      const paramValue = change.newValue as {
-        schema?: SwaggerSchema
-        name?: string
-        in?: string
-        required?: boolean
-        description?: string
-      }
-
-      if (paramValue.schema) {
-        return generateTypeScriptType(
-          paramValue.schema,
-          paramName,
-          endpointDiff.path,
-          endpointDiff.method,
-          'Param'
-        )
-      }
-    }
-  } catch (error) {
-    console.error('TypeScript 타입 생성 실패:', error, change)
-    return ''
-  }
-
-  return ''
-}
-
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    alert('클립보드에 복사되었습니다!')
-  } catch (err) {
-    console.error('복사 실패:', err)
-    // Fallback: 텍스트 영역 사용
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.select()
-    try {
-      document.execCommand('copy')
-      alert('클립보드에 복사되었습니다!')
-    } catch (e) {
-      alert('복사에 실패했습니다.')
-    }
-    document.body.removeChild(textarea)
-  }
 }
 
 function goHome() {
@@ -1068,135 +779,6 @@ watch(() => diffResult.value, () => {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-.change-item {
-  padding: $spacing-md;
-  border-radius: $radius-md;
-  border-left: 4px solid;
-
-  &.change-added {
-    background: #d1fae5;
-    border-color: var(--color-success);
-  }
-
-  &.change-removed {
-    background: #fee2e2;
-    border-color: var(--color-danger);
-  }
-
-  &.change-modified {
-    background: #fef3c7;
-    border-color: var(--color-warning);
-  }
-}
-
-.change-header {
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-  margin-bottom: $spacing-sm;
-}
-
-.change-type {
-  padding: $spacing-xs $spacing-sm;
-  border-radius: $radius-sm;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.change-path {
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-}
-
-.change-description {
-  margin-bottom: $spacing-sm;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.change-value {
-  margin-top: $spacing-sm;
-  padding: $spacing-sm;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: $radius-sm;
-
-  .value-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-bottom: $spacing-xs;
-    color: var(--color-text-secondary);
-  }
-
-  pre {
-    margin: 0;
-    font-size: 0.75rem;
-    font-family: 'Monaco', 'Courier New', monospace;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  &.old-value {
-    border-left: 3px solid var(--color-danger);
-  }
-
-  &.new-value {
-    border-left: 3px solid var(--color-success);
-  }
-}
-
-.typescript-type {
-  margin-top: $spacing-md;
-  padding: $spacing-md;
-  background: #1e293b;
-  border-radius: $radius-md;
-  border: 1px solid #334155;
-
-  .type-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-sm;
-  }
-
-  .type-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #cbd5e1;
-  }
-
-  .btn-copy {
-    padding: $spacing-xs $spacing-sm;
-    background: #334155;
-    color: #cbd5e1;
-    border: 1px solid #475569;
-    border-radius: $radius-sm;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      background: #475569;
-      color: white;
-    }
-  }
-
-  .type-code {
-    margin: 0;
-    padding: $spacing-md;
-    background: #0f172a;
-    border-radius: $radius-sm;
-    font-size: 0.875rem;
-    font-family: 'Monaco', 'Courier New', monospace;
-    color: #e2e8f0;
-    white-space: pre-wrap;
-    word-break: break-all;
-    overflow-x: auto;
-    line-height: 1.6;
   }
 }
 </style>

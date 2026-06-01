@@ -352,6 +352,32 @@
                             <div class="tio-response-url">{{ tryItOutResponse[`${tagName}-${index}`].requestUrl }}</div>
                           </div>
 
+                          <!-- Curl -->
+                          <div v-if="tryItOutResponse[`${tagName}-${index}`].curlCommand" class="tio-response-section">
+                            <div class="tio-response-label">Curl</div>
+                            <div class="code-block-wrapper">
+                              <button
+                                class="copy-btn"
+                                :class="{ copied: getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' }"
+                                @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].curlCommand, `tio-curl-${tagName}-${index}`)"
+                              >{{ getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre class="code-block tio-curl-block">{{ tryItOutResponse[`${tagName}-${index}`].curlCommand }}</pre>
+                            </div>
+                          </div>
+
+                          <!-- Request Headers -->
+                          <div class="tio-response-section">
+                            <div class="tio-response-label">Request Headers</div>
+                            <div class="code-block-wrapper">
+                              <button
+                                class="copy-btn"
+                                :class="{ copied: getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' }"
+                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders), `tio-req-hdr-${tagName}-${index}`)"
+                              >{{ getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders) }}</pre>
+                            </div>
+                          </div>
+
                           <!-- Status -->
                           <div class="tio-response-section">
                             <div class="tio-response-label">Status</div>
@@ -616,6 +642,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProjectFormModal from '@/components/ProjectFormModal.vue'
 import type { DiffResult } from '@/types/diff'
 import type { Project } from '@/types/project'
+import { buildCurlCommand } from '@/utils/build-curl-command'
 
 const route = useRoute()
 const router = useRouter()
@@ -1112,6 +1139,8 @@ interface TryItOutValues {
 interface TryItOutResult {
   loading: boolean
   requestUrl: string
+  requestHeaders: Record<string, string>
+  curlCommand: string
   status: number | null
   statusText: string
   headers: Record<string, string>
@@ -1180,14 +1209,54 @@ function toggleTryItOut(key: string, endpoint: ApiEndpoint) {
   }
 }
 
+function buildTargetHeaders(values: TryItOutValues): Record<string, string> {
+  const targetHeaders: Record<string, string> = {}
+
+  if (authConfig.value.bearerToken) {
+    targetHeaders.Authorization = `Bearer ${authConfig.value.bearerToken}`
+  }
+  if (authConfig.value.apiKey && authConfig.value.apiKeyHeader) {
+    targetHeaders[authConfig.value.apiKeyHeader] = authConfig.value.apiKey
+  }
+  for (const [key, value] of Object.entries(values.headerParams)) {
+    if (value !== '') targetHeaders[key] = value
+  }
+
+  return targetHeaders
+}
+
+function appendContentTypeHeader(
+  targetHeaders: Record<string, string>,
+  method: string,
+  values: TryItOutValues
+): { bodyData: unknown; headers: Record<string, string> } {
+  const headers = { ...targetHeaders }
+  let bodyData: unknown = undefined
+
+  if (!['post', 'put', 'patch'].includes(method) || !values.body.trim()) {
+    return { bodyData, headers }
+  }
+
+  try {
+    bodyData = JSON.parse(values.body)
+    headers['Content-Type'] = 'application/json'
+  } catch {
+    headers['Content-Type'] = 'text/plain'
+    bodyData = values.body
+  }
+
+  return { bodyData, headers }
+}
+
 async function executeRequest(key: string, endpoint: ApiEndpoint) {
   const values = tryItOutValues.value[key]
   if (!values) return
 
-  // reactive ref에 직접 할당해야 Vue가 변경을 감지함
   tryItOutResponse.value[key] = {
     loading: true,
     requestUrl: '',
+    requestHeaders: {},
+    curlCommand: '',
     status: null,
     statusText: '',
     headers: {},
@@ -1198,61 +1267,45 @@ async function executeRequest(key: string, endpoint: ApiEndpoint) {
   try {
     const base = swaggerBaseUrl.value
     if (!base) {
-      tryItOutResponse.value[key] = { ...tryItOutResponse.value[key], loading: false, error: 'Swagger 문서에 servers URL이 없어 요청을 보낼 수 없습니다' }
+      tryItOutResponse.value[key] = {
+        ...tryItOutResponse.value[key],
+        loading: false,
+        error: 'Swagger 문서에 servers URL이 없어 요청을 보낼 수 없습니다'
+      }
       return
     }
 
-    // path params 치환
     let resolvedPath = endpoint.path
-    for (const [k, v] of Object.entries(values.pathParams)) {
-      resolvedPath = resolvedPath.replace(`{${k}}`, encodeURIComponent(v))
+    for (const [pathKey, pathValue] of Object.entries(values.pathParams)) {
+      resolvedPath = resolvedPath.replace(`{${pathKey}}`, encodeURIComponent(pathValue))
     }
 
     const url = new URL(`${base}${resolvedPath}`)
-
-    // query params 추가
-    for (const [k, v] of Object.entries(values.queryParams)) {
-      if (v !== '') url.searchParams.set(k, v)
+    for (const [queryKey, queryValue] of Object.entries(values.queryParams)) {
+      if (queryValue !== '') url.searchParams.set(queryKey, queryValue)
     }
 
     const requestUrl = url.toString()
-    tryItOutResponse.value[key].requestUrl = requestUrl
-
-    // 헤더 조립 (대상 API용)
-    const targetHeaders: Record<string, string> = {}
-    if (authConfig.value.bearerToken) {
-      targetHeaders['Authorization'] = `Bearer ${authConfig.value.bearerToken}`
-    }
-    if (authConfig.value.apiKey && authConfig.value.apiKeyHeader) {
-      targetHeaders[authConfig.value.apiKeyHeader] = authConfig.value.apiKey
-    }
-    for (const [k, v] of Object.entries(values.headerParams)) {
-      if (v !== '') targetHeaders[k] = v
-    }
-
-    // body 파싱
-    let bodyData: any = undefined
     const method = endpoint.method.toLowerCase()
-    if (['post', 'put', 'patch'].includes(method) && values.body.trim()) {
-      try {
-        bodyData = JSON.parse(values.body)
-        targetHeaders['Content-Type'] = 'application/json'
-      } catch {
-        targetHeaders['Content-Type'] = 'text/plain'
-        bodyData = values.body
-      }
-    }
+    const baseHeaders = buildTargetHeaders(values)
+    const { bodyData, headers: targetHeaders } = appendContentTypeHeader(baseHeaders, method, values)
+    const curlCommand = buildCurlCommand(method, requestUrl, targetHeaders, bodyData)
 
-    // Supabase Edge Function 프록시를 통해 요청 (CORS 우회)
+    tryItOutResponse.value[key].requestUrl = requestUrl
+    tryItOutResponse.value[key].requestHeaders = targetHeaders
+    tryItOutResponse.value[key].curlCommand = curlCommand
+
     const { data: proxyData, error: proxyError } = await supabase.functions.invoke('proxy', {
       body: { method, url: requestUrl, headers: targetHeaders, body: bodyData }
     })
 
     if (proxyError) throw proxyError
-    // 완료 시 전체 객체를 새로 할당해서 Vue 반응성 확실히 트리거
+
     tryItOutResponse.value[key] = {
       loading: false,
       requestUrl,
+      requestHeaders: targetHeaders,
+      curlCommand,
       status: proxyData.status,
       statusText: proxyData.statusText,
       headers: proxyData.headers || {},
@@ -2390,6 +2443,10 @@ onMounted(async () => {
   padding: $spacing-xs $spacing-sm;
   background: #0f0f1e;
   border-radius: $radius-sm;
+}
+
+.tio-curl-block {
+  white-space: pre-wrap;
 }
 
 .tio-status-badge {
