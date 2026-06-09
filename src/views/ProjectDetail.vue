@@ -407,11 +407,22 @@
                           <div class="tio-response-section">
                             <div class="tio-response-label">Response Body</div>
                             <div class="code-block-wrapper">
-                              <button
-                                class="copy-btn"
-                                :class="{ copied: getCopyState(`tio-body-${tagName}-${index}`) === 'copied' }"
-                                @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].body, `tio-body-${tagName}-${index}`)"
-                              >{{ getCopyState(`tio-body-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <div class="code-block-actions">
+                                <button
+                                  v-if="hasInsertableAccessToken(tryItOutResponse[`${tagName}-${index}`].body)"
+                                  class="insert-token-btn"
+                                  type="button"
+                                  @click.stop="insertAccessTokenFromResponse(`${tagName}-${index}`)"
+                                >
+                                  삽입하기
+                                </button>
+                                <button
+                                  class="copy-btn"
+                                  type="button"
+                                  :class="{ copied: getCopyState(`tio-body-${tagName}-${index}`) === 'copied' }"
+                                  @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].body, `tio-body-${tagName}-${index}`)"
+                                >{{ getCopyState(`tio-body-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              </div>
                               <pre class="code-block">{{ tryItOutResponse[`${tagName}-${index}`].body }}</pre>
                             </div>
                           </div>
@@ -643,6 +654,10 @@ import ProjectFormModal from '@/components/ProjectFormModal.vue'
 import type { DiffResult } from '@/types/diff'
 import type { Project } from '@/types/project'
 import { buildCurlCommand } from '@/utils/build-curl-command'
+import {
+  extractAccessTokenFromResponseBody,
+  hasInsertableAccessToken
+} from '@/utils/extract-access-token'
 
 const route = useRoute()
 const router = useRouter()
@@ -1324,6 +1339,17 @@ function getParamsByIn(endpoint: ApiEndpoint, inType: string): any[] {
   return (endpoint.parameters || []).filter((p: any) => p.in === inType)
 }
 
+function insertAccessTokenFromResponse(key: string) {
+  const response = tryItOutResponse.value[key]
+  if (!response?.body) return
+
+  const token = extractAccessTokenFromResponseBody(response.body)
+  if (!token) return
+
+  authConfig.value.bearerToken = token
+  showAuthorizePanel.value = true
+}
+
 onMounted(async () => {
   // 프로젝트가 없으면 백엔드에서 로드 시도
   const authStore = useAuthStore()
@@ -1969,16 +1995,41 @@ onMounted(async () => {
 .code-block-wrapper {
   position: relative;
 
-  &:hover .copy-btn {
+  &:hover .copy-btn,
+  &:hover .insert-token-btn {
     opacity: 1;
   }
 }
 
-.copy-btn {
+.code-block-actions {
   position: absolute;
   top: $spacing-xs;
   right: $spacing-xs;
   z-index: 1;
+  display: flex;
+  gap: $spacing-xs;
+}
+
+.insert-token-btn {
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: #1e3a5f;
+  color: #93c5fd;
+  border: 1px solid #2563eb;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  opacity: 1;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: #1d4ed8;
+    color: #fff;
+  }
+}
+
+.copy-btn {
+  position: static;
   padding: 6px 10px;
   font-size: 0.875rem;
   font-weight: 500;
