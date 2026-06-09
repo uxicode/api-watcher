@@ -14,45 +14,25 @@
           </div>
         </div>
         <div class="header-actions">
-          <button
-            class="btn btn-primary"
-            :disabled="isLoading"
-            @click="handleCheck"
-          >
+          <button class="btn btn-primary" :disabled="isLoading" @click="handleCheck">
             {{ isLoading ? '체크 중...' : '지금 체크하기' }}
           </button>
-          <button
-            class="btn btn-secondary"
-            @click="showEditModal = true"
-          >
+          <button class="btn btn-secondary" @click="showEditModal = true">
             수정
           </button>
-          <button
-            class="btn btn-danger"
-            @click="showDeleteDialog = true"
-          >
+          <button class="btn btn-danger" @click="showDeleteDialog = true">
             삭제
           </button>
         </div>
       </header>
 
       <Teleport to="body">
-        <ProjectFormModal
-          v-if="showEditModal"
-          :project="project"
-          @close="showEditModal = false"
-          @update="handleUpdate"
-        />
-        
-        <ConfirmDialog
-          v-if="showDeleteDialog"
-          :message="`'${project.name}' 프로젝트를 삭제하시겠습니까?`"
-          :description="'이 작업은 되돌릴 수 없으며, 모든 스냅샷과 변경 내역이 함께 삭제됩니다.'"
-          confirm-text="삭제"
-          cancel-text="취소"
-          @confirm="handleDeleteConfirm"
-          @cancel="showDeleteDialog = false"
-        />
+        <ProjectFormModal v-if="showEditModal" :project="project" @close="showEditModal = false"
+          @update="handleUpdate" />
+
+        <ConfirmDialog v-if="showDeleteDialog" :message="`'${project.name}' 프로젝트를 삭제하시겠습니까?`"
+          :description="'이 작업은 되돌릴 수 없으며, 모든 스냅샷과 변경 내역이 함께 삭제됩니다.'" confirm-text="삭제" cancel-text="취소"
+          @confirm="handleDeleteConfirm" @cancel="showDeleteDialog = false" />
       </Teleport>
 
       <div class="content">
@@ -87,20 +67,19 @@
               </span>
             </div>
             <div class="section-header-actions" @click.stop>
-              <button
-                class="authorize-btn"
-                :class="{ active: showAuthorizePanel }"
-                @click.stop="showAuthorizePanel = !showAuthorizePanel"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              <button class="authorize-btn" :class="{ active: showAuthorizePanel }"
+                @click.stop="showAuthorizePanel = !showAuthorizePanel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" width="14" height="14">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
                 Authorize
               </button>
             </div>
             <button class="toggle-btn" :class="{ expanded: showApiList }">
-              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
@@ -116,42 +95,21 @@
               <div class="authorize-field">
                 <label>Bearer Token</label>
                 <div class="authorize-input-row">
-                  <input
-                    v-model="authConfig.bearerToken"
-                    type="text"
-                    placeholder="JWT 토큰 입력 (Bearer 제외)"
-                    class="authorize-input"
-                    @click.stop
-                  />
-                  <button
-                    v-if="authConfig.bearerToken"
-                    class="authorize-clear-btn"
-                    @click.stop="authConfig.bearerToken = ''"
-                  >지우기</button>
+                  <input v-model="authConfig.bearerToken" type="text" placeholder="JWT 토큰 입력 (Bearer 제외)"
+                    class="authorize-input" @click.stop />
+                  <button v-if="authConfig.bearerToken" class="authorize-clear-btn"
+                    @click.stop="authConfig.bearerToken = ''">지우기</button>
                 </div>
               </div>
               <div class="authorize-field">
                 <label>API Key</label>
                 <div class="authorize-input-row">
-                  <input
-                    v-model="authConfig.apiKeyHeader"
-                    type="text"
-                    placeholder="헤더명 (예: X-API-Key)"
-                    class="authorize-input authorize-input-sm"
-                    @click.stop
-                  />
-                  <input
-                    v-model="authConfig.apiKey"
-                    type="text"
-                    placeholder="API Key 값"
-                    class="authorize-input"
-                    @click.stop
-                  />
-                  <button
-                    v-if="authConfig.apiKey"
-                    class="authorize-clear-btn"
-                    @click.stop="authConfig.apiKey = ''"
-                  >지우기</button>
+                  <input v-model="authConfig.apiKeyHeader" type="text" placeholder="헤더명 (예: X-API-Key)"
+                    class="authorize-input authorize-input-sm" @click.stop />
+                  <input v-model="authConfig.apiKey" type="text" placeholder="API Key 값" class="authorize-input"
+                    @click.stop />
+                  <button v-if="authConfig.apiKey" class="authorize-clear-btn"
+                    @click.stop="authConfig.apiKey = ''">지우기</button>
                 </div>
               </div>
             </div>
@@ -167,38 +125,31 @@
               <button class="btn btn-secondary btn-sm" @click.stop="showAuthorizePanel = false">닫기</button>
             </div>
           </div>
-          
+
           <div v-if="apiEndpoints.length === 0" class="empty-state">
             아직 스냅샷이 없습니다. "지금 체크하기"를 눌러 API 정보를 가져오세요.
           </div>
-          
+
           <div v-else-if="showApiList" class="api-list">
             <!-- 태그별로 그룹화된 API 목록 -->
-            <div
-              v-for="(group, tagName) in groupedApiEndpoints"
-              :key="tagName"
-              class="tag-group"
-            >
+            <div v-for="(group, tagName) in groupedApiEndpoints" :key="tagName" class="tag-group">
               <div class="tag-header" @click.stop="toggleTagGroup(tagName)">
                 <div class="tag-info">
                   <h3>{{ tagName }}</h3>
                   <span class="tag-count">{{ group.length }}개</span>
                 </div>
                 <div class="tag-expand-icon" :class="{ expanded: expandedTags.has(tagName) }">
-                  <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </div>
               </div>
-              
+
               <div v-if="expandedTags.has(tagName)" class="tag-apis">
-                <div
-                  v-for="(endpoint, index) in group"
-                  :key="`${tagName}-${index}`"
-                  class="api-item"
+                <div v-for="(endpoint, index) in group" :key="`${tagName}-${index}`" class="api-item"
                   :class="[{ expanded: expandedApiKeys.has(`${tagName}-${index}`) }, `api-item-${endpoint.method.toLowerCase()}`]"
-                  @click.stop="toggleApiDetail(`${tagName}-${index}`)"
-                >
+                  @click.stop="toggleApiDetail(`${tagName}-${index}`)">
                   <div class="api-main">
                     <div class="api-method" :class="`method-${endpoint.method.toLowerCase()}`">
                       {{ endpoint.method.toUpperCase() }}
@@ -209,49 +160,55 @@
                         {{ endpoint.summary }}
                       </div>
                     </div>
-                    <div class="api-expand-icon" :class="{ expanded: expandedApiKeys.has(`${tagName}-${index}`) }">
-                      <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
+                    <div class="api-actions">
+                      <button
+                        type="button"
+                        class="api-copy-btn"
+                        :class="{ copied: getCopyState(`api-path-${tagName}-${index}`) === 'copied' }"
+                        title="API 주소 복사"
+                        @click.stop="copyApiAddress(`${tagName}-${index}`, endpoint)"
+                      >
+                        <svg class="clipboard-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      </button>
+                      <div class="api-expand-icon" :class="{ expanded: expandedApiKeys.has(`${tagName}-${index}`) }">
+                        <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                  
+
                   <div v-if="expandedApiKeys.has(`${tagName}-${index}`)" class="api-details" @click.stop>
 
                     <!-- Try it out 버튼 -->
                     <div class="try-it-out-header">
-                      <button
-                        class="try-it-out-btn"
-                        :class="{ active: tryItOutMap[`${tagName}-${index}`] }"
-                        @click.stop="toggleTryItOut(`${tagName}-${index}`, endpoint)"
-                      >
+                      <button class="try-it-out-btn" :class="{ active: tryItOutMap[`${tagName}-${index}`] }"
+                        @click.stop="toggleTryItOut(`${tagName}-${index}`, endpoint)">
                         {{ tryItOutMap[`${tagName}-${index}`] ? 'Cancel' : 'Try it out' }}
                       </button>
                     </div>
 
                     <!-- Try it out 폼 -->
-                    <div v-if="tryItOutMap[`${tagName}-${index}`] && tryItOutValues[`${tagName}-${index}`]" class="try-it-out-form">
+                    <div v-if="tryItOutMap[`${tagName}-${index}`] && tryItOutValues[`${tagName}-${index}`]"
+                      class="try-it-out-form">
 
                       <!-- Path Parameters -->
                       <template v-if="getParamsByIn(endpoint, 'path').length > 0">
                         <div class="tio-section-title">Path Parameters</div>
-                        <div
-                          v-for="param in getParamsByIn(endpoint, 'path')"
-                          :key="param.name"
-                          class="tio-param-row"
-                        >
+                        <div v-for="param in getParamsByIn(endpoint, 'path')" :key="param.name" class="tio-param-row">
                           <label class="tio-label">
                             {{ param.name }}
                             <span v-if="param.required" class="tio-required">*</span>
                             <span class="tio-in-badge">path</span>
                           </label>
-                          <input
-                            v-model="tryItOutValues[`${tagName}-${index}`].pathParams[param.name]"
-                            type="text"
-                            class="tio-input"
-                            :placeholder="param.schema?.example ?? param.description ?? param.name"
-                            @click.stop
-                          />
+                          <input v-model="tryItOutValues[`${tagName}-${index}`].pathParams[param.name]" type="text"
+                            class="tio-input" :placeholder="param.schema?.example ?? param.description ?? param.name"
+                            @click.stop />
                           <span v-if="param.description" class="tio-desc">{{ param.description }}</span>
                         </div>
                       </template>
@@ -259,23 +216,15 @@
                       <!-- Query Parameters -->
                       <template v-if="getParamsByIn(endpoint, 'query').length > 0">
                         <div class="tio-section-title">Query Parameters</div>
-                        <div
-                          v-for="param in getParamsByIn(endpoint, 'query')"
-                          :key="param.name"
-                          class="tio-param-row"
-                        >
+                        <div v-for="param in getParamsByIn(endpoint, 'query')" :key="param.name" class="tio-param-row">
                           <label class="tio-label">
                             {{ param.name }}
                             <span v-if="param.required" class="tio-required">*</span>
                             <span class="tio-in-badge">query</span>
                           </label>
-                          <input
-                            v-model="tryItOutValues[`${tagName}-${index}`].queryParams[param.name]"
-                            type="text"
-                            class="tio-input"
-                            :placeholder="param.schema?.example ?? param.description ?? ''"
-                            @click.stop
-                          />
+                          <input v-model="tryItOutValues[`${tagName}-${index}`].queryParams[param.name]" type="text"
+                            class="tio-input" :placeholder="param.schema?.example ?? param.description ?? ''"
+                            @click.stop />
                           <span v-if="param.description" class="tio-desc">{{ param.description }}</span>
                         </div>
                       </template>
@@ -283,49 +232,34 @@
                       <!-- Header Parameters -->
                       <template v-if="getParamsByIn(endpoint, 'header').length > 0">
                         <div class="tio-section-title">Header Parameters</div>
-                        <div
-                          v-for="param in getParamsByIn(endpoint, 'header')"
-                          :key="param.name"
-                          class="tio-param-row"
-                        >
+                        <div v-for="param in getParamsByIn(endpoint, 'header')" :key="param.name" class="tio-param-row">
                           <label class="tio-label">
                             {{ param.name }}
                             <span v-if="param.required" class="tio-required">*</span>
                             <span class="tio-in-badge">header</span>
                           </label>
-                          <input
-                            v-model="tryItOutValues[`${tagName}-${index}`].headerParams[param.name]"
-                            type="text"
-                            class="tio-input"
-                            :placeholder="param.schema?.example ?? param.description ?? ''"
-                            @click.stop
-                          />
+                          <input v-model="tryItOutValues[`${tagName}-${index}`].headerParams[param.name]" type="text"
+                            class="tio-input" :placeholder="param.schema?.example ?? param.description ?? ''"
+                            @click.stop />
                         </div>
                       </template>
 
                       <!-- Request Body -->
                       <template v-if="endpoint.requestBody">
                         <div class="tio-section-title">Request Body</div>
-                        <textarea
-                          v-model="tryItOutValues[`${tagName}-${index}`].body"
-                          class="tio-body-textarea"
-                          placeholder="JSON 형식으로 입력하세요"
-                          rows="8"
-                          @click.stop
-                        />
+                        <textarea v-model="tryItOutValues[`${tagName}-${index}`].body" class="tio-body-textarea"
+                          placeholder="JSON 형식으로 입력하세요" rows="8" @click.stop />
                       </template>
 
                       <!-- Execute / Cancel -->
                       <div class="tio-actions">
-                        <button
-                          class="tio-execute-btn"
-                          :disabled="tryItOutResponse[`${tagName}-${index}`]?.loading"
-                          @click.stop="executeRequest(`${tagName}-${index}`, endpoint)"
-                        >
+                        <button class="tio-execute-btn" :disabled="tryItOutResponse[`${tagName}-${index}`]?.loading"
+                          @click.stop="executeRequest(`${tagName}-${index}`, endpoint)">
                           {{ tryItOutResponse[`${tagName}-${index}`]?.loading ? '요청 중...' : 'Execute' }}
                         </button>
                         <span v-if="swaggerBaseUrl" class="tio-base-url">{{ swaggerBaseUrl }}</span>
-                        <span v-else class="tio-base-url tio-base-url-warn">⚠ servers URL 없음 — Swagger 문서에 servers 설정을 확인하세요</span>
+                        <span v-else class="tio-base-url tio-base-url-warn">⚠ servers URL 없음 — Swagger 문서에 servers 설정을
+                          확인하세요</span>
                       </div>
 
                       <!-- 응답 패널 -->
@@ -356,12 +290,12 @@
                           <div v-if="tryItOutResponse[`${tagName}-${index}`].curlCommand" class="tio-response-section">
                             <div class="tio-response-label">Curl</div>
                             <div class="code-block-wrapper">
-                              <button
-                                class="copy-btn"
+                              <button class="copy-btn"
                                 :class="{ copied: getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' }"
-                                @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].curlCommand, `tio-curl-${tagName}-${index}`)"
-                              >{{ getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                              <pre class="code-block tio-curl-block">{{ tryItOutResponse[`${tagName}-${index}`].curlCommand }}</pre>
+                                @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].curlCommand, `tio-curl-${tagName}-${index}`)">{{
+                                  getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre
+                                class="code-block tio-curl-block">{{ tryItOutResponse[`${tagName}-${index}`].curlCommand }}</pre>
                             </div>
                           </div>
 
@@ -369,37 +303,37 @@
                           <div class="tio-response-section">
                             <div class="tio-response-label">Request Headers</div>
                             <div class="code-block-wrapper">
-                              <button
-                                class="copy-btn"
+                              <button class="copy-btn"
                                 :class="{ copied: getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' }"
-                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders), `tio-req-hdr-${tagName}-${index}`)"
-                              >{{ getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                              <pre class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders) }}</pre>
+                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders), `tio-req-hdr-${tagName}-${index}`)">{{
+                                  getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사'
+                                }}</button>
+                              <pre
+                                class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders) }}</pre>
                             </div>
                           </div>
 
                           <!-- Status -->
                           <div class="tio-response-section">
                             <div class="tio-response-label">Status</div>
-                            <span
-                              class="tio-status-badge"
-                              :class="getStatusClass(String(tryItOutResponse[`${tagName}-${index}`].status))"
-                            >
+                            <span class="tio-status-badge"
+                              :class="getStatusClass(String(tryItOutResponse[`${tagName}-${index}`].status))">
                               {{ tryItOutResponse[`${tagName}-${index}`].status }}
                               {{ tryItOutResponse[`${tagName}-${index}`].statusText }}
                             </span>
                           </div>
 
                           <!-- Response Headers -->
-                          <div v-if="Object.keys(tryItOutResponse[`${tagName}-${index}`].headers).length > 0" class="tio-response-section">
+                          <div v-if="Object.keys(tryItOutResponse[`${tagName}-${index}`].headers).length > 0"
+                            class="tio-response-section">
                             <div class="tio-response-label">Response Headers</div>
                             <div class="code-block-wrapper">
-                              <button
-                                class="copy-btn"
+                              <button class="copy-btn"
                                 :class="{ copied: getCopyState(`tio-hdr-${tagName}-${index}`) === 'copied' }"
-                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].headers), `tio-hdr-${tagName}-${index}`)"
-                              >{{ getCopyState(`tio-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                              <pre class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].headers) }}</pre>
+                                @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].headers), `tio-hdr-${tagName}-${index}`)">{{
+                                  getCopyState(`tio-hdr-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                              <pre
+                                class="code-block">{{ formatJson(tryItOutResponse[`${tagName}-${index}`].headers) }}</pre>
                             </div>
                           </div>
 
@@ -408,20 +342,15 @@
                             <div class="tio-response-label">Response Body</div>
                             <div class="code-block-wrapper">
                               <div class="code-block-actions">
-                                <button
-                                  v-if="hasInsertableAccessToken(tryItOutResponse[`${tagName}-${index}`].body)"
-                                  class="insert-token-btn"
-                                  type="button"
-                                  @click.stop="insertAccessTokenFromResponse(`${tagName}-${index}`)"
-                                >
+                                <button v-if="hasInsertableAccessToken(tryItOutResponse[`${tagName}-${index}`].body)"
+                                  class="insert-token-btn" type="button"
+                                  @click.stop="insertAccessTokenFromResponse(`${tagName}-${index}`)">
                                   삽입하기
                                 </button>
-                                <button
-                                  class="copy-btn"
-                                  type="button"
+                                <button class="copy-btn" type="button"
                                   :class="{ copied: getCopyState(`tio-body-${tagName}-${index}`) === 'copied' }"
-                                  @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].body, `tio-body-${tagName}-${index}`)"
-                                >{{ getCopyState(`tio-body-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                  @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].body, `tio-body-${tagName}-${index}`)">{{
+                                    getCopyState(`tio-body-${tagName}-${index}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
                               </div>
                               <pre class="code-block">{{ tryItOutResponse[`${tagName}-${index}`].body }}</pre>
                             </div>
@@ -434,11 +363,7 @@
                     <div v-if="endpoint.parameters && endpoint.parameters.length > 0" class="detail-section">
                       <h4>Parameters</h4>
                       <div class="parameter-list">
-                        <div
-                          v-for="(param, pIndex) in endpoint.parameters"
-                          :key="pIndex"
-                          class="parameter-item"
-                        >
+                        <div v-for="(param, pIndex) in endpoint.parameters" :key="pIndex" class="parameter-item">
                           <span class="param-name">{{ param.name }}</span>
                           <span class="param-in">({{ param.in }})</span>
                           <span v-if="param.required" class="param-required">required</span>
@@ -453,85 +378,73 @@
                         <h4>Request Body</h4>
                         <span v-if="endpoint.requestBody.required" class="body-required-badge">required</span>
                       </div>
-                      <div
-                        v-for="contentType in getRequestBodyContentTypes(endpoint.requestBody)"
-                        :key="contentType"
-                        class="body-content-block"
-                      >
+                      <div v-for="contentType in getRequestBodyContentTypes(endpoint.requestBody)" :key="contentType"
+                        class="body-content-block">
                         <div class="body-content-type">{{ contentType }}</div>
                         <div class="body-tabs">
-                          <button
-                            class="body-tab-btn"
+                          <button class="body-tab-btn"
                             :class="{ active: getBodyTab(`${tagName}-${index}-${contentType}`) === 'example' }"
-                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'example')"
-                          >Example Value</button>
-                          <button
-                            class="body-tab-btn"
+                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'example')">Example
+                            Value</button>
+                          <button class="body-tab-btn"
                             :class="{ active: getBodyTab(`${tagName}-${index}-${contentType}`) === 'schema' }"
-                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'schema')"
-                          >Schema</button>
+                            @click.stop="setBodyTab(`${tagName}-${index}-${contentType}`, 'schema')">Schema</button>
                         </div>
                         <template v-if="endpoint.requestBody.content[contentType]?.schema">
-                          <div
-                            v-if="getBodyTab(`${tagName}-${index}-${contentType}`) === 'example'"
-                            class="code-block-wrapper"
-                          >
-                            <button
-                              class="copy-btn"
+                          <div v-if="getBodyTab(`${tagName}-${index}-${contentType}`) === 'example'"
+                            class="code-block-wrapper">
+                            <button class="copy-btn"
                               :class="{ copied: getCopyState(`req-ex-${tagName}-${index}-${contentType}`) === 'copied' }"
-                              @click.stop="copyToClipboard(formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema), `req-ex-${tagName}-${index}-${contentType}`)"
-                            >{{ getCopyState(`req-ex-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                            <pre class="code-block">{{ formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema) }}</pre>
+                              @click.stop="copyToClipboard(formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema), `req-ex-${tagName}-${index}-${contentType}`)">{{
+                                getCopyState(`req-ex-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사'
+                              }}</button>
+                            <pre
+                              class="code-block">{{ formatJson(buildExampleFromSchema(endpoint.requestBody.content[contentType].schema) ?? endpoint.requestBody.content[contentType].schema) }}</pre>
                           </div>
                           <template v-else>
                             <div
                               v-if="getSchemaName(endpoint.requestBody.content[contentType].schema) || endpoint.requestBody.content[contentType].schema?.description"
-                              class="schema-description"
-                            >
-                              <span
-                                v-if="getSchemaName(endpoint.requestBody.content[contentType].schema)"
-                                class="schema-description-name"
-                              >{{ getSchemaName(endpoint.requestBody.content[contentType].schema) }}</span><span
+                              class="schema-description">
+                              <span v-if="getSchemaName(endpoint.requestBody.content[contentType].schema)"
+                                class="schema-description-name">{{
+                                  getSchemaName(endpoint.requestBody.content[contentType].schema) }}</span><span
                                 v-if="getSchemaName(endpoint.requestBody.content[contentType].schema) && endpoint.requestBody.content[contentType].schema?.description"
-                                class="schema-description-sep"
-                              >:</span>
-                              <span
-                                v-if="endpoint.requestBody.content[contentType].schema?.description"
-                                class="schema-description-text"
-                              >{{ endpoint.requestBody.content[contentType].schema.description.trim() }}</span>
+                                class="schema-description-sep">:</span>
+                              <span v-if="endpoint.requestBody.content[contentType].schema?.description"
+                                class="schema-description-text">{{
+                                  endpoint.requestBody.content[contentType].schema.description.trim() }}</span>
                             </div>
                             <div class="code-block-wrapper">
-                              <button
-                                class="copy-btn"
+                              <button class="copy-btn"
                                 :class="{ copied: getCopyState(`req-sc-${tagName}-${index}-${contentType}`) === 'copied' }"
-                                @click.stop="copyToClipboard(formatSchema(endpoint.requestBody.content[contentType].schema), `req-sc-${tagName}-${index}-${contentType}`)"
-                              >{{ getCopyState(`req-sc-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                              <pre class="code-block">{{ formatSchema(endpoint.requestBody.content[contentType].schema) }}</pre>
+                                @click.stop="copyToClipboard(formatSchema(endpoint.requestBody.content[contentType].schema), `req-sc-${tagName}-${index}-${contentType}`)">{{
+                                  getCopyState(`req-sc-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사'
+                                }}</button>
+                              <pre
+                                class="code-block">{{ formatSchema(endpoint.requestBody.content[contentType].schema) }}</pre>
                             </div>
                           </template>
                         </template>
                         <div v-else class="code-block-wrapper">
-                          <button
-                            class="copy-btn"
+                          <button class="copy-btn"
                             :class="{ copied: getCopyState(`req-fb-${tagName}-${index}-${contentType}`) === 'copied' }"
-                            @click.stop="copyToClipboard(formatJson(endpoint.requestBody.content[contentType]), `req-fb-${tagName}-${index}-${contentType}`)"
-                          >{{ getCopyState(`req-fb-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
+                            @click.stop="copyToClipboard(formatJson(endpoint.requestBody.content[contentType]), `req-fb-${tagName}-${index}-${contentType}`)">{{
+                              getCopyState(`req-fb-${tagName}-${index}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사'
+                            }}</button>
                           <pre class="code-block">{{ formatJson(endpoint.requestBody.content[contentType]) }}</pre>
                         </div>
                       </div>
                       <!-- content 키가 없는 경우 폴백 -->
-                      <pre v-if="getRequestBodyContentTypes(endpoint.requestBody).length === 0" class="code-block">{{ formatJson(endpoint.requestBody) }}</pre>
+                      <pre v-if="getRequestBodyContentTypes(endpoint.requestBody).length === 0" class="code-block">{{
+                        formatJson(endpoint.requestBody) }}</pre>
                     </div>
 
                     <!-- Responses -->
                     <div v-if="endpoint.responses" class="detail-section">
                       <h4>Responses</h4>
                       <div class="response-list">
-                        <div
-                          v-for="(response, statusCode) in endpoint.responses"
-                          :key="statusCode"
-                          class="response-item"
-                        >
+                        <div v-for="(response, statusCode) in endpoint.responses" :key="statusCode"
+                          class="response-item">
                           <div class="response-status" :class="getStatusClass(statusCode)">
                             {{ statusCode }}
                           </div>
@@ -541,71 +454,64 @@
                             </div>
                             <!-- content-type 별 탭 표시 -->
                             <template v-if="getResponseContentTypes(response).length > 0">
-                              <div
-                                v-for="contentType in getResponseContentTypes(response)"
-                                :key="contentType"
-                                class="body-content-block"
-                              >
+                              <div v-for="contentType in getResponseContentTypes(response)" :key="contentType"
+                                class="body-content-block">
                                 <div class="body-content-type">{{ contentType }}</div>
-                                <template v-if="response.content[contentType]?.schema || response.content[contentType]?.example">
+                                <template
+                                  v-if="response.content[contentType]?.schema || response.content[contentType]?.example">
                                   <div class="body-tabs">
-                                    <button
-                                      class="body-tab-btn"
+                                    <button class="body-tab-btn"
                                       :class="{ active: getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'example' }"
-                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'example')"
-                                    >Example Value</button>
-                                    <button
-                                      v-if="response.content[contentType]?.schema"
-                                      class="body-tab-btn"
+                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'example')">Example
+                                      Value</button>
+                                    <button v-if="response.content[contentType]?.schema" class="body-tab-btn"
                                       :class="{ active: getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'schema' }"
-                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'schema')"
-                                    >Schema</button>
+                                      @click.stop="setResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`, 'schema')">Schema</button>
                                   </div>
                                   <div
                                     v-if="getResponseTab(`${tagName}-${index}-${statusCode}-${contentType}`) === 'example' || !response.content[contentType]?.schema"
-                                    class="code-block-wrapper"
-                                  >
-                                    <button
-                                      class="copy-btn"
+                                    class="code-block-wrapper">
+                                    <button class="copy-btn"
                                       :class="{ copied: getCopyState(`res-ex-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
-                                      @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-ex-${tagName}-${index}-${statusCode}-${contentType}`)"
-                                    >{{ getCopyState(`res-ex-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                                    <pre class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                      @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-ex-${tagName}-${index}-${statusCode}-${contentType}`)">{{
+                                        getCopyState(`res-ex-${tagName}-${index}-${statusCode}-${contentType}`) ===
+                                      'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                    <pre
+                                      class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
                                   </div>
                                   <template v-else>
                                     <div
                                       v-if="getSchemaName(response.content[contentType].schema) || response.content[contentType].schema?.description"
-                                      class="schema-description"
-                                    >
-                                      <span
-                                        v-if="getSchemaName(response.content[contentType].schema)"
-                                        class="schema-description-name"
-                                      >{{ getSchemaName(response.content[contentType].schema) }}</span><span
+                                      class="schema-description">
+                                      <span v-if="getSchemaName(response.content[contentType].schema)"
+                                        class="schema-description-name">{{
+                                          getSchemaName(response.content[contentType].schema) }}</span><span
                                         v-if="getSchemaName(response.content[contentType].schema) && response.content[contentType].schema?.description"
-                                        class="schema-description-sep"
-                                      >:</span>
-                                      <span
-                                        v-if="response.content[contentType].schema?.description"
-                                        class="schema-description-text"
-                                      >{{ response.content[contentType].schema.description.trim() }}</span>
+                                        class="schema-description-sep">:</span>
+                                      <span v-if="response.content[contentType].schema?.description"
+                                        class="schema-description-text">{{
+                                          response.content[contentType].schema.description.trim() }}</span>
                                     </div>
                                     <div class="code-block-wrapper">
-                                      <button
-                                        class="copy-btn"
+                                      <button class="copy-btn"
                                         :class="{ copied: getCopyState(`res-sc-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
-                                        @click.stop="copyToClipboard(formatSchema(response.content[contentType].schema), `res-sc-${tagName}-${index}-${statusCode}-${contentType}`)"
-                                      >{{ getCopyState(`res-sc-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                                      <pre class="code-block">{{ formatSchema(response.content[contentType].schema) }}</pre>
+                                        @click.stop="copyToClipboard(formatSchema(response.content[contentType].schema), `res-sc-${tagName}-${index}-${statusCode}-${contentType}`)">{{
+                                          getCopyState(`res-sc-${tagName}-${index}-${statusCode}-${contentType}`) ===
+                                        'copied' ? '✓ 복사됨' : '복사' }}</button>
+                                      <pre
+                                        class="code-block">{{ formatSchema(response.content[contentType].schema) }}</pre>
                                     </div>
                                   </template>
                                 </template>
                                 <div v-else class="code-block-wrapper">
-                                  <button
-                                    class="copy-btn"
+                                  <button class="copy-btn"
                                     :class="{ copied: getCopyState(`res-fb-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' }"
-                                    @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-fb-${tagName}-${index}-${statusCode}-${contentType}`)"
-                                  >{{ getCopyState(`res-fb-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied' ? '✓ 복사됨' : '복사' }}</button>
-                                  <pre class="code-block">{{ formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
+                                    @click.stop="copyToClipboard(formatJson(buildExampleFromResponseContent(response.content[contentType])), `res-fb-${tagName}-${index}-${statusCode}-${contentType}`)">{{
+                                      getCopyState(`res-fb-${tagName}-${index}-${statusCode}-${contentType}`) === 'copied'
+                                    ? '✓ 복사됨' :
+                                    '복사' }}</button>
+                                  <pre class="code-block">{{
+                                    formatJson(buildExampleFromResponseContent(response.content[contentType])) }}</pre>
                                 </div>
                               </div>
                             </template>
@@ -626,16 +532,19 @@
             아직 변경 내역이 없습니다.
           </div>
           <div v-else class="diffs-list">
-            <DiffCard
-              v-for="diff in diffs"
-              :key="diff.comparedAt"
-              :diff="diff"
-              @view="handleViewDiff"
-            />
+            <DiffCard v-for="diff in diffs" :key="diff.comparedAt" :diff="diff" @view="handleViewDiff" />
           </div>
         </div>
       </div>
     </template>
+
+    <Teleport to="body">
+      <Transition name="toast-fade">
+        <div v-if="toastMessage" class="copy-toast" role="status">
+          {{ toastMessage }}
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -706,38 +615,38 @@ interface ApiEndpoint {
 function resolveRef(ref: string, swaggerData: any): any {
   // $ref 형식: "#/components/schemas/SchemaName"
   if (!ref || !ref.startsWith('#/')) return null
-  
+
   const parts = ref.substring(2).split('/')
   let result = swaggerData
-  
+
   for (const part of parts) {
     if (!result || typeof result !== 'object') return null
     result = result[part]
   }
-  
+
   return result
 }
 
 // 재귀적으로 모든 $ref를 resolve하는 함수
 function resolveAllRefs(obj: any, swaggerData: any, visited = new Set<string>()): any {
   if (!obj || typeof obj !== 'object') return obj
-  
+
   // 배열 처리
   if (Array.isArray(obj)) {
     return obj.map(item => resolveAllRefs(item, swaggerData, visited))
   }
-  
+
   // $ref가 있는 경우
   if (obj.$ref) {
     const ref = obj.$ref
-    
+
     // 순환 참조 방지
     if (visited.has(ref)) {
       return { $ref: ref, _note: 'Circular reference detected' }
     }
-    
+
     visited.add(ref)
-    
+
     const resolved = resolveRef(ref, swaggerData)
     if (resolved) {
       // 해결된 스키마도 재귀적으로 처리
@@ -749,57 +658,57 @@ function resolveAllRefs(obj: any, swaggerData: any, visited = new Set<string>())
       }
       return resolvedSchema
     }
-    
+
     return obj
   }
-  
+
   // 객체의 모든 속성을 재귀적으로 처리
   const result: Record<string, any> = {}
   for (const [key, value] of Object.entries(obj)) {
     result[key] = resolveAllRefs(value, swaggerData, visited)
   }
-  
+
   return result
 }
 
 // content의 $ref를 실제 스키마로 대체하는 공통 함수
 function resolveContentSchema(content: any, swaggerData: any): any {
   if (!content || typeof content !== 'object') return content
-  
+
   return resolveAllRefs(content, swaggerData)
 }
 
 // response의 $ref를 실제 스키마로 대체하는 함수
 function resolveResponseSchema(responses: any, swaggerData: any): any {
   if (!responses || typeof responses !== 'object') return responses
-  
+
   const resolvedResponses: Record<string, any> = {}
-  
+
   for (const [statusCode, response] of Object.entries(responses)) {
     const resolvedResponse = { ...response as any }
-    
+
     // content가 있는 경우
     if (resolvedResponse.content && typeof resolvedResponse.content === 'object') {
       resolvedResponse.content = resolveContentSchema(resolvedResponse.content, swaggerData)
     }
-    
+
     resolvedResponses[statusCode] = resolvedResponse
   }
-  
+
   return resolvedResponses
 }
 
 // requestBody의 $ref를 실제 스키마로 대체하는 함수
 function resolveRequestBodySchema(requestBody: any, swaggerData: any): any {
   if (!requestBody || typeof requestBody !== 'object') return requestBody
-  
+
   const resolvedRequestBody = { ...requestBody }
-  
+
   // content가 있는 경우
   if (resolvedRequestBody.content && typeof resolvedRequestBody.content === 'object') {
     resolvedRequestBody.content = resolveContentSchema(resolvedRequestBody.content, swaggerData)
   }
-  
+
   return resolvedRequestBody
 }
 
@@ -819,7 +728,7 @@ const apiEndpoints = computed<ApiEndpoint[]>(() => {
             // responses와 requestBody의 $ref를 resolve
             const resolvedResponses = resolveResponseSchema(details?.responses, swaggerData)
             const resolvedRequestBody = resolveRequestBodySchema(details?.requestBody, swaggerData)
-            
+
             endpoints.push({
               method,
               path,
@@ -855,11 +764,11 @@ const apiEndpoints = computed<ApiEndpoint[]>(() => {
 // 태그별로 그룹화된 API 엔드포인트
 const groupedApiEndpoints = computed(() => {
   const groups: Record<string, ApiEndpoint[]> = {}
-  
+
   for (const endpoint of apiEndpoints.value) {
     // 태그가 없거나 빈 배열이면 'Untagged'로 분류
     const tags = endpoint.tags && endpoint.tags.length > 0 ? endpoint.tags : ['Untagged']
-    
+
     // 하나의 엔드포인트가 여러 태그를 가질 수 있음
     for (const tag of tags) {
       if (!groups[tag]) {
@@ -868,7 +777,7 @@ const groupedApiEndpoints = computed(() => {
       groups[tag].push(endpoint)
     }
   }
-  
+
   // 태그 이름순으로 정렬 (Untagged는 마지막에)
   const sortedGroups: Record<string, ApiEndpoint[]> = {}
   const sortedKeys = Object.keys(groups).sort((a, b) => {
@@ -876,11 +785,11 @@ const groupedApiEndpoints = computed(() => {
     if (b === 'Untagged') return -1
     return a.localeCompare(b)
   })
-  
+
   for (const key of sortedKeys) {
     sortedGroups[key] = groups[key]
   }
-  
+
   return sortedGroups
 })
 
@@ -992,10 +901,10 @@ function formatSchema(schema: any): string {
     const target = schema.properties
       ? JSON.parse(JSON.stringify(schema.properties))
       : (() => {
-          const clean = JSON.parse(JSON.stringify(schema))
-          delete clean._schemaName
-          return clean
-        })()
+        const clean = JSON.parse(JSON.stringify(schema))
+        delete clean._schemaName
+        return clean
+      })()
     return JSON.stringify(target, null, 2).replace(/\\n/g, '\n')
   } catch {
     return String(schema)
@@ -1073,6 +982,28 @@ function buildExampleFromSchema(schema: any): any {
 
 // 클립보드 복사 상태 (key → 'idle' | 'copied')
 const copyStateMap = ref<Record<string, 'idle' | 'copied'>>({})
+const toastMessage = ref<string | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string) {
+  if (toastTimer) clearTimeout(toastTimer)
+  toastMessage.value = message
+  toastTimer = setTimeout(() => {
+    toastMessage.value = null
+    toastTimer = null
+  }, 2000)
+}
+
+function getApiAddressText(endpoint: ApiEndpoint): string {
+  const base = swaggerBaseUrl.value
+  if (base) return `${base}${endpoint.path}`
+  return endpoint.path
+}
+
+async function copyApiAddress(key: string, endpoint: ApiEndpoint) {
+  await copyToClipboard(getApiAddressText(endpoint), `api-path-${key}`)
+  showToast('Copied')
+}
 
 async function copyToClipboard(text: string, key: string) {
   try {
@@ -1564,20 +1495,20 @@ onMounted(async () => {
   // overflow-y: auto;
   margin-top: 10px;
   padding: $spacing-xs;
-  
+
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: var(--bg-tertiary);
     border-radius: $radius-sm;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: var(--color-border);
     border-radius: $radius-sm;
-    
+
     &:hover {
       background: var(--color-text-secondary);
     }
@@ -1681,7 +1612,8 @@ onMounted(async () => {
       background: #c2fee2;
     }
   }
-  &.api-item-delete{
+
+  &.api-item-delete {
     background: #fee2e2;
 
     &:hover,
@@ -1689,6 +1621,7 @@ onMounted(async () => {
       background: #fcd3d3;
     }
   }
+
   &.api-item-put {
     background: #fef3c7;
 
@@ -1697,6 +1630,7 @@ onMounted(async () => {
       background: #fdf6d9;
     }
   }
+
   &.api-item-patch {
     background: #e0e7ff;
 
@@ -1714,8 +1648,45 @@ onMounted(async () => {
   padding: $spacing-xs $spacing-md;
 }
 
-.api-expand-icon {
+.api-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.api-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+
+  .clipboard-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover {
+    color: var(--color-primary);
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  &.copied {
+    color: #166534;
+    background: #dcfce7;
+  }
+}
+
+.api-expand-icon {
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
@@ -1818,6 +1789,7 @@ onMounted(async () => {
     opacity: 0;
     max-height: 0;
   }
+
   to {
     opacity: 1;
     max-height: 500px;
@@ -2199,7 +2171,9 @@ onMounted(async () => {
   color: var(--color-text-secondary);
   padding: 2px 6px;
 
-  &:hover { color: var(--color-text-primary); }
+  &:hover {
+    color: var(--color-text-primary);
+  }
 }
 
 .authorize-fields {
@@ -2234,9 +2208,14 @@ onMounted(async () => {
   color: var(--color-text-primary);
   outline: none;
 
-  &:focus { border-color: var(--color-primary); }
+  &:focus {
+    border-color: var(--color-primary);
+  }
 
-  &.authorize-input-sm { max-width: 160px; flex: 0 0 160px; }
+  &.authorize-input-sm {
+    max-width: 160px;
+    flex: 0 0 160px;
+  }
 }
 
 .authorize-clear-btn {
@@ -2249,7 +2228,10 @@ onMounted(async () => {
   color: var(--color-text-secondary);
   white-space: nowrap;
 
-  &:hover { border-color: #e53e3e; color: #e53e3e; }
+  &:hover {
+    border-color: #e53e3e;
+    color: #e53e3e;
+  }
 }
 
 .authorize-panel-footer {
@@ -2276,7 +2258,9 @@ onMounted(async () => {
   border-radius: 50%;
   background: var(--color-border);
 
-  &.active { background: #38a169; }
+  &.active {
+    background: #38a169;
+  }
 }
 
 .btn-sm {
@@ -2303,14 +2287,18 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 
-  &:hover { background: rgba(66, 153, 225, 0.08); }
+  &:hover {
+    background: rgba(66, 153, 225, 0.08);
+  }
 
   &.active {
     background: #e53e3e;
     border-color: #e53e3e;
     color: #fff;
 
-    &:hover { background: #c53030; }
+    &:hover {
+      background: #c53030;
+    }
   }
 }
 
@@ -2330,7 +2318,9 @@ onMounted(async () => {
   color: #9ca3af;
   margin: $spacing-md 0 $spacing-xs;
 
-  &:first-child { margin-top: 0; }
+  &:first-child {
+    margin-top: 0;
+  }
 }
 
 .tio-param-row {
@@ -2380,8 +2370,13 @@ onMounted(async () => {
   outline: none;
   box-sizing: border-box;
 
-  &:focus { border-color: #6366f1; }
-  &::placeholder { color: #4b5563; }
+  &:focus {
+    border-color: #6366f1;
+  }
+
+  &::placeholder {
+    color: #4b5563;
+  }
 }
 
 .tio-desc {
@@ -2405,8 +2400,13 @@ onMounted(async () => {
   box-sizing: border-box;
   line-height: 1.5;
 
-  &:focus { border-color: #6366f1; }
-  &::placeholder { color: #4b5563; }
+  &:focus {
+    border-color: #6366f1;
+  }
+
+  &::placeholder {
+    color: #4b5563;
+  }
 }
 
 .tio-actions {
@@ -2428,8 +2428,14 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.15s;
 
-  &:hover:not(:disabled) { background: #4338ca; }
-  &:disabled { opacity: 0.6; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #4338ca;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 .tio-base-url {
@@ -2437,7 +2443,9 @@ onMounted(async () => {
   color: #6b7280;
   font-family: 'Monaco', 'Menlo', monospace;
 
-  &.tio-base-url-warn { color: #f59e0b; }
+  &.tio-base-url-warn {
+    color: #f59e0b;
+  }
 }
 
 // ─── Try it out 응답 패널 ───────────────────────────────────────────────────
@@ -2507,10 +2515,52 @@ onMounted(async () => {
   font-size: 0.8rem;
   font-weight: 700;
 
-  &.status-success { background: #064e3b; color: #6ee7b7; }
-  &.status-redirect { background: #1e1b4b; color: #a5b4fc; }
-  &.status-client-error { background: #451a03; color: #fed7aa; }
-  &.status-server-error { background: #450a0a; color: #fca5a5; }
+  &.status-success {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+
+  &.status-redirect {
+    background: #1e1b4b;
+    color: #a5b4fc;
+  }
+
+  &.status-client-error {
+    background: #451a03;
+    color: #fed7aa;
+  }
+
+  &.status-server-error {
+    background: #450a0a;
+    color: #fca5a5;
+  }
+}
+
+.copy-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 10px 18px;
+  border-radius: $radius-md;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
 }
 
 @include mobile {
