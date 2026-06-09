@@ -41,38 +41,6 @@
           </p>
         </div>
 
-        <div class="form-group">
-          <label>
-            <input
-              v-model="hasApiKey"
-              type="checkbox"
-            />
-            API Key 인증 사용
-          </label>
-        </div>
-
-        <template v-if="hasApiKey">
-          <div class="form-group">
-            <label for="apiKeyHeader">API Key Header 이름</label>
-            <input
-              id="apiKeyHeader"
-              v-model="form.apiKeyHeader"
-              type="text"
-              placeholder="X-API-Key"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="apiKey">API Key 값</label>
-            <input
-              id="apiKey"
-              v-model="form.apiKey"
-              type="password"
-              placeholder="your-api-key"
-            />
-          </div>
-        </template>
-
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" @click="$emit('close')">
             취소
@@ -105,14 +73,11 @@ const emit = defineEmits<{
 // 수정 모드인지 확인
 const isEditMode = computed(() => !!props.project)
 
-const hasApiKey = ref(false)
 const isSubmitting = ref(false)
 
 const form = reactive({
   name: '',
-  swaggerUrl: '',
-  apiKey: '',
-  apiKeyHeader: ''
+  swaggerUrl: ''
 })
 
 // 수정 모드일 때 초기값 설정
@@ -120,9 +85,6 @@ onMounted(() => {
   if (props.project) {
     form.name = props.project.name
     form.swaggerUrl = props.project.swaggerUrl
-    form.apiKey = props.project.apiKey || ''
-    form.apiKeyHeader = props.project.apiKeyHeader || ''
-    hasApiKey.value = !!(props.project.apiKey || props.project.apiKeyHeader)
   }
 })
 
@@ -133,9 +95,7 @@ function handleSubmit() {
     // 수정 모드
     const updates: Partial<Project> = {
       name: form.name,
-      swaggerUrl: form.swaggerUrl,
-      apiKey: hasApiKey.value ? form.apiKey : undefined,
-      apiKeyHeader: hasApiKey.value ? form.apiKeyHeader : undefined
+      swaggerUrl: form.swaggerUrl
     }
     emit('update', props.project.id, updates)
   } else {
@@ -143,8 +103,6 @@ function handleSubmit() {
     const project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
       name: form.name,
       swaggerUrl: form.swaggerUrl,
-      apiKey: hasApiKey.value ? form.apiKey : undefined,
-      apiKeyHeader: hasApiKey.value ? form.apiKeyHeader : undefined,
       isActive: true
     }
     emit('submit', project)
@@ -228,8 +186,7 @@ function handleSubmit() {
   }
 
   input[type="text"],
-  input[type="url"],
-  input[type="password"] {
+  input[type="url"] {
     width: 100%;
     padding: $spacing-sm $spacing-md;
     border: 1px solid var(--color-border);
@@ -241,10 +198,6 @@ function handleSubmit() {
       outline: none;
       border-color: var(--color-primary);
     }
-  }
-
-  input[type="checkbox"] {
-    margin-right: $spacing-sm;
   }
 
   .help-text {

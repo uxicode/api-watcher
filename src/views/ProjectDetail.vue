@@ -1013,8 +1013,6 @@ function showToast(message: string, anchorEl: HTMLElement) {
 }
 
 function getApiAddressText(endpoint: ApiEndpoint): string {
-  const base = swaggerBaseUrl.value
-  if (base) return `${base}${endpoint.path}`
   return endpoint.path
 }
 
