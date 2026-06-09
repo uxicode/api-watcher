@@ -2022,7 +2022,10 @@ onMounted(async () => {
 }
 
 .copy-btn {
-  position: static;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1;
   padding: 6px 10px;
   font-size: 0.875rem;
   font-weight: 500;
