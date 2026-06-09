@@ -345,7 +345,7 @@
                                 <button v-if="hasInsertableAccessToken(tryItOutResponse[`${tagName}-${index}`].body)"
                                   class="insert-token-btn" type="button"
                                   @click.stop="insertAccessTokenFromResponse(`${tagName}-${index}`)">
-                                  삽입하기
+                                  토큰 삽입하기
                                 </button>
                                 <button class="copy-btn" type="button"
                                   :class="{ copied: getCopyState(`tio-body-${tagName}-${index}`) === 'copied' }"
@@ -2004,10 +2004,16 @@ onMounted(async () => {
 }
 
 .insert-token-btn {
-  padding: 6px 10px;
-  font-size: 0.875rem;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1;
+  bottom: 10px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
   font-weight: 500;
   background: #1e3a5f;
+  white-space: nowrap;
   color: #93c5fd;
   border: 1px solid #2563eb;
   border-radius: $radius-sm;
@@ -2030,6 +2036,7 @@ onMounted(async () => {
   font-size: 0.875rem;
   font-weight: 500;
   background: #3a3a3a;
+  white-space: nowrap;
   color: #ccc;
   border: 1px solid #555;
   border-radius: $radius-sm;
