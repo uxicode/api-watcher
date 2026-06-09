@@ -166,7 +166,7 @@
                         class="api-copy-btn"
                         :class="{ copied: getCopyState(`api-path-${tagName}-${index}`) === 'copied' }"
                         title="API 주소 복사"
-                        @click.stop="copyApiAddress(`${tagName}-${index}`, endpoint)"
+                        @click.stop="copyApiAddress(`${tagName}-${index}`, endpoint, $event)"
                       >
                         <svg class="clipboard-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                           stroke-linecap="round" stroke-linejoin="round">
@@ -540,7 +540,12 @@
 
     <Teleport to="body">
       <Transition name="toast-fade">
-        <div v-if="toastMessage" class="copy-toast" role="status">
+        <div
+          v-if="toastMessage && toastPosition"
+          class="copy-toast"
+          role="status"
+          :style="{ top: `${toastPosition.top}px`, left: `${toastPosition.left}px` }"
+        >
           {{ toastMessage }}
         </div>
       </Transition>
@@ -982,14 +987,27 @@ function buildExampleFromSchema(schema: any): any {
 
 // 클립보드 복사 상태 (key → 'idle' | 'copied')
 const copyStateMap = ref<Record<string, 'idle' | 'copied'>>({})
+interface ToastPosition {
+  top: number
+  left: number
+}
+
 const toastMessage = ref<string | null>(null)
+const toastPosition = ref<ToastPosition | null>(null)
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
-function showToast(message: string) {
+function showToast(message: string, anchorEl: HTMLElement) {
+  const rect = anchorEl.getBoundingClientRect()
+  toastPosition.value = {
+    top: rect.top - 8,
+    left: rect.left + rect.width / 2
+  }
+
   if (toastTimer) clearTimeout(toastTimer)
   toastMessage.value = message
   toastTimer = setTimeout(() => {
     toastMessage.value = null
+    toastPosition.value = null
     toastTimer = null
   }, 2000)
 }
@@ -1000,9 +1018,12 @@ function getApiAddressText(endpoint: ApiEndpoint): string {
   return endpoint.path
 }
 
-async function copyApiAddress(key: string, endpoint: ApiEndpoint) {
+async function copyApiAddress(key: string, endpoint: ApiEndpoint, event: MouseEvent) {
+  const anchorEl = event.currentTarget
+  if (!(anchorEl instanceof HTMLElement)) return
+
   await copyToClipboard(getApiAddressText(endpoint), `api-path-${key}`)
-  showToast('Copied')
+  showToast('Copied', anchorEl)
 }
 
 async function copyToClipboard(text: string, key: string) {
@@ -2538,17 +2559,16 @@ onMounted(async () => {
 
 .copy-toast {
   position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -100%);
   z-index: 9999;
-  padding: 10px 18px;
-  border-radius: $radius-md;
+  padding: 6px 12px;
+  border-radius: $radius-sm;
   background: #1e293b;
   color: #f8fafc;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
   pointer-events: none;
 }
 
@@ -2560,7 +2580,7 @@ onMounted(async () => {
 .toast-fade-enter-from,
 .toast-fade-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(8px);
+  transform: translate(-50%, calc(-100% + 6px));
 }
 
 @include mobile {
