@@ -2006,7 +2006,6 @@ onMounted(async () => {
 .insert-token-btn {
   position: absolute;
   right: 0;
-  top: 0;
   z-index: 1;
   bottom: 10px;
   padding: 4px 8px;
