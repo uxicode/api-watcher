@@ -56,6 +56,12 @@
               <span class="value">{{ apiEndpoints.length }}개</span>
             </div>
           </div>
+
+          <TokenIssuanceSettings
+            v-model:draft="issuanceDraft"
+            :errors="issuanceValidationErrors"
+            @save="handleSaveIssuanceSettings"
+          />
         </div>
 
         <div class="api-list-section">
@@ -102,7 +108,7 @@
                 </div>
               </div>
               <div class="authorize-field">
-                <label>API Key</label>
+                <label>API Key(Swagger 문서 자체에 접근 권한 필요한 경우에만 입력)</label>
                 <div class="authorize-input-row">
                   <input v-model="authConfig.apiKeyHeader" type="text" placeholder="헤더명 (예: X-API-Key)"
                     class="authorize-input authorize-input-sm" @click.stop />
@@ -538,6 +544,12 @@
       </div>
     </template>
 
+    <TokenIssuanceFab
+      v-if="canShowIssuanceFab"
+      :loading="isIssuing"
+      @issue="handleIssueBearerToken"
+    />
+
     <Teleport to="body">
       <Transition name="toast-fade">
         <div
@@ -559,12 +571,14 @@ import { Teleport } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
-import { supabase } from '@/lib/supabase'
 import { useProjectStore } from '@/stores/project-store'
 import { useAuthStore } from '@/stores/auth-store'
 import DiffCard from '@/components/DiffCard.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProjectFormModal from '@/components/ProjectFormModal.vue'
+import TokenIssuanceFab from '@/components/TokenIssuanceFab.vue'
+import TokenIssuanceSettings from '@/components/TokenIssuanceSettings.vue'
+import { useTokenIssuance } from '@/composables/use-token-issuance'
 import type { DiffResult } from '@/types/diff'
 import type { Project } from '@/types/project'
 import { buildCurlCommand } from '@/utils/build-curl-command'
@@ -572,6 +586,7 @@ import {
   extractAccessTokenFromResponseBody,
   hasInsertableAccessToken
 } from '@/utils/extract-access-token'
+import { invokeProxyRequest } from '@/utils/invoke-proxy-request'
 
 const route = useRoute()
 const router = useRouter()
@@ -1092,6 +1107,26 @@ const authConfig = ref({
   apiKeyHeader: 'X-API-Key'
 })
 
+const {
+  draft: issuanceDraft,
+  validationErrors: issuanceValidationErrors,
+  canShowIssuanceFab,
+  isIssuing,
+  loadFromStorage: loadIssuanceFromStorage,
+  saveSettings: saveIssuanceSettings,
+  issueBearerToken
+} = useTokenIssuance(computed(() => route.params.id as string), authConfig)
+
+function handleSaveIssuanceSettings(anchorEl: HTMLElement) {
+  const result = saveIssuanceSettings()
+  showToast(result.message, anchorEl)
+}
+
+async function handleIssueBearerToken(anchorEl: HTMLElement) {
+  const result = await issueBearerToken()
+  showToast(result.message, anchorEl)
+}
+
 // ─── Try it out ────────────────────────────────────────────────────────────
 
 interface TryItOutValues {
@@ -1260,11 +1295,12 @@ async function executeRequest(key: string, endpoint: ApiEndpoint) {
     tryItOutResponse.value[key].requestHeaders = targetHeaders
     tryItOutResponse.value[key].curlCommand = curlCommand
 
-    const { data: proxyData, error: proxyError } = await supabase.functions.invoke('proxy', {
-      body: { method, url: requestUrl, headers: targetHeaders, body: bodyData }
+    const proxyData = await invokeProxyRequest({
+      method,
+      url: requestUrl,
+      headers: targetHeaders,
+      body: bodyData
     })
-
-    if (proxyError) throw proxyError
 
     tryItOutResponse.value[key] = {
       loading: false,
@@ -1273,10 +1309,8 @@ async function executeRequest(key: string, endpoint: ApiEndpoint) {
       curlCommand,
       status: proxyData.status,
       statusText: proxyData.statusText,
-      headers: proxyData.headers || {},
-      body: typeof proxyData.body === 'object'
-        ? JSON.stringify(proxyData.body, null, 2)
-        : String(proxyData.body ?? ''),
+      headers: proxyData.headers,
+      body: proxyData.body,
       error: null
     }
   } catch (err: any) {
@@ -1299,6 +1333,10 @@ function insertAccessTokenFromResponse(key: string) {
   authConfig.value.bearerToken = token
   showAuthorizePanel.value = true
 }
+
+watch(() => route.params.id, () => {
+  loadIssuanceFromStorage()
+}, { immediate: true })
 
 onMounted(async () => {
   // 프로젝트가 없으면 백엔드에서 로드 시도

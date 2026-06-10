@@ -1,7 +1,6 @@
 import { vi } from 'vitest'
 
-// LocalStorage 모킹
-const localStorageMock = (() => {
+function createStorageMock() {
   let store: Record<string, string> = {}
 
   return {
@@ -16,10 +15,14 @@ const localStorageMock = (() => {
       store = {}
     }
   }
-})()
+}
 
 Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
+  value: createStorageMock()
+})
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: createStorageMock()
 })
 
 // Clipboard API 모킹
