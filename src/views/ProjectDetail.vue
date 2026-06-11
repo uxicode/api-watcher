@@ -294,8 +294,27 @@
 
                           <!-- Curl -->
                           <div v-if="tryItOutResponse[`${tagName}-${index}`].curlCommand" class="tio-response-section">
-                            <div class="tio-response-label">Curl</div>
-                            <div class="code-block-wrapper">
+                            <button
+                              type="button"
+                              class="tio-response-toggle"
+                              @click.stop="toggleTioResponseSection(`${tagName}-${index}`, 'curl')"
+                            >
+                              <span
+                                class="tio-response-toggle-icon"
+                                :class="{ expanded: isTioResponseSectionExpanded(`${tagName}-${index}`, 'curl') }"
+                              >
+                                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14"
+                                  height="14" aria-hidden="true">
+                                  <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                              </span>
+                              <span class="tio-response-label">Curl</span>
+                            </button>
+                            <div
+                              v-if="isTioResponseSectionExpanded(`${tagName}-${index}`, 'curl')"
+                              class="code-block-wrapper"
+                            >
                               <button class="copy-btn"
                                 :class="{ copied: getCopyState(`tio-curl-${tagName}-${index}`) === 'copied' }"
                                 @click.stop="copyToClipboard(tryItOutResponse[`${tagName}-${index}`].curlCommand, `tio-curl-${tagName}-${index}`)">{{
@@ -307,8 +326,27 @@
 
                           <!-- Request Headers -->
                           <div class="tio-response-section">
-                            <div class="tio-response-label">Request Headers</div>
-                            <div class="code-block-wrapper">
+                            <button
+                              type="button"
+                              class="tio-response-toggle"
+                              @click.stop="toggleTioResponseSection(`${tagName}-${index}`, 'requestHeaders')"
+                            >
+                              <span
+                                class="tio-response-toggle-icon"
+                                :class="{ expanded: isTioResponseSectionExpanded(`${tagName}-${index}`, 'requestHeaders') }"
+                              >
+                                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14"
+                                  height="14" aria-hidden="true">
+                                  <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                              </span>
+                              <span class="tio-response-label">Request Headers</span>
+                            </button>
+                            <div
+                              v-if="isTioResponseSectionExpanded(`${tagName}-${index}`, 'requestHeaders')"
+                              class="code-block-wrapper"
+                            >
                               <button class="copy-btn"
                                 :class="{ copied: getCopyState(`tio-req-hdr-${tagName}-${index}`) === 'copied' }"
                                 @click.stop="copyToClipboard(formatJson(tryItOutResponse[`${tagName}-${index}`].requestHeaders), `tio-req-hdr-${tagName}-${index}`)">{{
@@ -1151,6 +1189,34 @@ interface TryItOutResult {
 const tryItOutMap = ref<Record<string, boolean>>({})
 const tryItOutValues = ref<Record<string, TryItOutValues>>({})
 const tryItOutResponse = ref<Record<string, TryItOutResult>>({})
+
+type TioResponseSection = 'curl' | 'requestHeaders'
+
+interface TioResponseSectionState {
+  curl: boolean
+  requestHeaders: boolean
+}
+
+const tioResponseSectionMap = ref<Record<string, TioResponseSectionState>>({})
+
+function getTioResponseSectionState(key: string): TioResponseSectionState {
+  return tioResponseSectionMap.value[key] ?? { curl: false, requestHeaders: false }
+}
+
+function isTioResponseSectionExpanded(key: string, section: TioResponseSection): boolean {
+  return getTioResponseSectionState(key)[section]
+}
+
+function toggleTioResponseSection(key: string, section: TioResponseSection) {
+  const current = getTioResponseSectionState(key)
+  tioResponseSectionMap.value = {
+    ...tioResponseSectionMap.value,
+    [key]: {
+      ...current,
+      [section]: !current[section]
+    }
+  }
+}
 
 // Swagger servers[0].url 또는 project.swaggerUrl 에서 base URL 추출
 const swaggerBaseUrl = computed(() => {
@@ -2551,12 +2617,49 @@ onMounted(async () => {
   margin-bottom: $spacing-md;
 }
 
+.tio-response-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: 0;
+  margin-bottom: $spacing-xs;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+
+  &:hover .tio-response-label {
+    color: #9ca3af;
+  }
+}
+
+.tio-response-toggle-icon {
+  display: flex;
+  align-items: center;
+  color: #6b7280;
+  transition: color 0.2s;
+
+  .chevron-icon {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(0deg);
+  }
+
+  &.expanded .chevron-icon {
+    transform: rotate(90deg);
+  }
+}
+
 .tio-response-label {
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #6b7280;
+  margin-bottom: 0;
+  transition: color 0.2s;
+}
+
+.tio-response-section > .tio-response-label {
   margin-bottom: $spacing-xs;
 }
 
