@@ -1,4 +1,4 @@
-import { computed, ref, unref, type ComputedRef, type Ref } from 'vue'
+import { computed, ref, unref, watch, type ComputedRef, type Ref } from 'vue'
 import {
   createDefaultTokenIssuanceConfig,
   type TokenIssuanceConfig
@@ -8,8 +8,10 @@ import { invokeProxyRequest } from '@/utils/invoke-proxy-request'
 import {
   loadTokenIssuanceConfig,
   loadTokenIssuanceConfigOrDefault,
-  saveTokenIssuanceConfig
+  saveTokenIssuanceConfig,
+  getStorageKey
 } from '@/utils/token-issuance-storage'
+import { removePinnedTokenIssuanceConfig } from '@/utils/token-issuance-pinned-storage'
 import { validateTokenIssuanceConfig } from '@/utils/validate-token-issuance-config'
 
 export interface AuthConfigRef {
@@ -69,6 +71,35 @@ export function useTokenIssuance(
     return validateTokenIssuanceConfig(savedConfig.value).isValid
   })
 
+  function persistDraft(config: TokenIssuanceConfig) {
+    const id = unref(projectId)
+    if (!id) return
+
+    saveTokenIssuanceConfig(id, config)
+    savedConfig.value = { ...config }
+  }
+
+  watch(
+    () => draft.value.pinData,
+    (isPinned) => {
+      const id = unref(projectId)
+      if (!id) return
+
+      if (!isPinned) {
+        removePinnedTokenIssuanceConfig(id)
+        if (savedConfig.value) {
+          sessionStorage.setItem(getStorageKey(id), JSON.stringify({ ...draft.value, pinData: false }))
+        }
+        return
+      }
+
+      const validation = validateTokenIssuanceConfig(draft.value)
+      if (validation.isValid) {
+        persistDraft({ ...draft.value })
+      }
+    }
+  )
+
   function loadFromStorage() {
     const id = unref(projectId)
     const loaded = loadTokenIssuanceConfig(id)
@@ -88,12 +119,13 @@ export function useTokenIssuance(
 
     const id = unref(projectId)
     const config = { ...draft.value }
-    saveTokenIssuanceConfig(id, config)
-    savedConfig.value = config
+    persistDraft(config)
 
     return {
       success: true,
-      message: '토큰 발급 API 설정이 저장되었습니다'
+      message: config.pinData
+        ? '토큰 발급 API 설정이 저장되었습니다 (브라우저에 고정됨)'
+        : '토큰 발급 API 설정이 저장되었습니다'
     }
   }
 

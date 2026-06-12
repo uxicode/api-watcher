@@ -13,7 +13,7 @@
       로그인·토큰 발급 API를 설정하고 저장하면 우측 하단 FAB로 Bearer token을 한 번에 받을 수 있습니다.
       proxy는 <strong>공개 URL만</strong> 요청할 수 있으며,
       <template v-if="draft.pinData">
-        <strong>데이터 고정</strong> 시 입력값이 쿠키에 저장되어 브라우저를 다시 열어도 유지됩니다.
+        <strong>데이터 고정</strong> 시 입력값이 브라우저에 저장되어 다시 열어도 유지됩니다. 저장 버튼을 눌러주세요.
       </template>
       <template v-else>
         설정은 <strong>탭을 닫으면 삭제</strong>됩니다.

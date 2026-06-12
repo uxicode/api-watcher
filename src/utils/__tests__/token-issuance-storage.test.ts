@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createDefaultTokenIssuanceConfig } from '@/types/token-issuance'
-import { clearCookieStore } from '@/test/setup'
 import {
   getStorageKey,
   loadTokenIssuanceConfig,
@@ -14,7 +13,7 @@ describe('token-issuance-storage', () => {
 
   beforeEach(() => {
     sessionStorage.clear()
-    clearCookieStore()
+    localStorage.clear()
   })
 
   it('storage key를 projectId 기준으로 생성해야 함', () => {

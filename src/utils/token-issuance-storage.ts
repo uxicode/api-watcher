@@ -6,7 +6,7 @@ import {
   loadPinnedTokenIssuanceConfig,
   removePinnedTokenIssuanceConfig,
   savePinnedTokenIssuanceConfig
-} from '@/utils/token-issuance-cookie'
+} from '@/utils/token-issuance-pinned-storage'
 import { parseTokenIssuanceConfig } from '@/utils/parse-token-issuance-config'
 
 const STORAGE_PREFIX = 'api-watcher:token-issuance:'

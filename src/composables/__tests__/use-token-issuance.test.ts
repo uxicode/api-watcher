@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref } from 'vue'
-import { clearCookieStore } from '@/test/setup'
 import { useTokenIssuance } from '@/composables/use-token-issuance'
 import { getStorageKey } from '@/utils/token-issuance-storage'
+import { getPinnedStorageKey } from '@/utils/token-issuance-pinned-storage'
 
 vi.mock('@/utils/invoke-proxy-request', () => ({
   invokeProxyRequest: vi.fn()
@@ -34,7 +34,7 @@ describe('use-token-issuance', () => {
 
   beforeEach(() => {
     sessionStorage.clear()
-    clearCookieStore()
+    localStorage.clear()
     authConfig.value.bearerToken = ''
     vi.clearAllMocks()
   })
@@ -103,6 +103,16 @@ describe('use-token-issuance', () => {
 
     expect(result.success).toBe(false)
     expect(result.message).toContain('401')
+  })
+
+  it('pinData 저장 시 localStorage에 고정해야 함', () => {
+    const issuance = useTokenIssuance(projectId, authConfig)
+    issuance.draft.value = { ...validConfig, pinData: true }
+
+    const saveResult = issuance.saveSettings()
+
+    expect(saveResult.success).toBe(true)
+    expect(localStorage.getItem(getPinnedStorageKey(projectId))).toBeTruthy()
   })
 
   it('accessToken이 없으면 실패해야 함', async () => {
