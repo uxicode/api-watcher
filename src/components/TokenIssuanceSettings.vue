@@ -97,7 +97,8 @@ function handleSave(event: MouseEvent) {
 }
 
 .pin-label {
-  display: inline-flex;
+  display: flex;
+  justify-content: end;
   align-items: center;
   gap: $spacing-xs;
   margin-bottom: $spacing-sm;
