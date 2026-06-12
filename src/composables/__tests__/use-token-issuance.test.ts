@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ref } from 'vue'
+import { clearCookieStore } from '@/test/setup'
 import { useTokenIssuance } from '@/composables/use-token-issuance'
 import { getStorageKey } from '@/utils/token-issuance-storage'
 
@@ -16,6 +17,13 @@ import { extractAccessTokenFromResponseBody } from '@/utils/extract-access-token
 
 const jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
 
+const validConfig = {
+  method: 'post' as const,
+  url: 'https://api.example.com/login',
+  body: '{"email":"test@example.com","password":"secret"}',
+  pinData: false
+}
+
 describe('use-token-issuance', () => {
   const projectId = 'project-abc'
   const authConfig = ref({
@@ -26,6 +34,7 @@ describe('use-token-issuance', () => {
 
   beforeEach(() => {
     sessionStorage.clear()
+    clearCookieStore()
     authConfig.value.bearerToken = ''
     vi.clearAllMocks()
   })
@@ -33,12 +42,7 @@ describe('use-token-issuance', () => {
   it('저장 후 FAB 표시 조건을 만족해야 함', () => {
     const issuance = useTokenIssuance(projectId, authConfig)
 
-    issuance.draft.value = {
-      enabled: true,
-      method: 'post',
-      url: 'https://api.example.com/login',
-      body: '{"email":"test@example.com","password":"secret"}'
-    }
+    issuance.draft.value = { ...validConfig }
 
     const saveResult = issuance.saveSettings()
     expect(saveResult.success).toBe(true)
@@ -49,18 +53,19 @@ describe('use-token-issuance', () => {
   it('loadFromStorage로 draft와 savedConfig를 복원해야 함', () => {
     const issuance = useTokenIssuance(projectId, authConfig)
     issuance.draft.value = {
-      enabled: true,
       method: 'get',
       url: 'https://api.example.com/token',
-      body: ''
+      body: '',
+      pinData: false
     }
     issuance.saveSettings()
 
     const reloaded = useTokenIssuance(projectId, authConfig)
     reloaded.loadFromStorage()
 
-    expect(reloaded.savedConfig.value?.enabled).toBe(true)
+    expect(reloaded.savedConfig.value?.method).toBe('get')
     expect(reloaded.draft.value.url).toBe('https://api.example.com/token')
+    expect(reloaded.canShowIssuanceFab.value).toBe(true)
   })
 
   it('issueBearerToken 성공 시 bearerToken을 설정해야 함', async () => {
@@ -73,12 +78,7 @@ describe('use-token-issuance', () => {
     vi.mocked(extractAccessTokenFromResponseBody).mockReturnValue(jwtToken)
 
     const issuance = useTokenIssuance(projectId, authConfig)
-    issuance.draft.value = {
-      enabled: true,
-      method: 'post',
-      url: 'https://api.example.com/login',
-      body: '{"email":"test@example.com"}'
-    }
+    issuance.draft.value = { ...validConfig, body: '{"email":"test@example.com"}' }
     issuance.saveSettings()
 
     const result = await issuance.issueBearerToken()
@@ -96,12 +96,7 @@ describe('use-token-issuance', () => {
     })
 
     const issuance = useTokenIssuance(projectId, authConfig)
-    issuance.draft.value = {
-      enabled: true,
-      method: 'post',
-      url: 'https://api.example.com/login',
-      body: '{"email":"test@example.com"}'
-    }
+    issuance.draft.value = { ...validConfig, body: '{"email":"test@example.com"}' }
     issuance.saveSettings()
 
     const result = await issuance.issueBearerToken()
@@ -120,12 +115,7 @@ describe('use-token-issuance', () => {
     vi.mocked(extractAccessTokenFromResponseBody).mockReturnValue(null)
 
     const issuance = useTokenIssuance(projectId, authConfig)
-    issuance.draft.value = {
-      enabled: true,
-      method: 'post',
-      url: 'https://api.example.com/login',
-      body: '{"email":"test@example.com"}'
-    }
+    issuance.draft.value = { ...validConfig, body: '{"email":"test@example.com"}' }
     issuance.saveSettings()
 
     const result = await issuance.issueBearerToken()

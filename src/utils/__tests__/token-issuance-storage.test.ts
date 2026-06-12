@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createDefaultTokenIssuanceConfig } from '@/types/token-issuance'
+import { clearCookieStore } from '@/test/setup'
 import {
   getStorageKey,
   loadTokenIssuanceConfig,
@@ -13,6 +14,7 @@ describe('token-issuance-storage', () => {
 
   beforeEach(() => {
     sessionStorage.clear()
+    clearCookieStore()
   })
 
   it('storage key를 projectId 기준으로 생성해야 함', () => {
@@ -21,10 +23,10 @@ describe('token-issuance-storage', () => {
 
   it('설정을 저장하고 불러와야 함', () => {
     const config = {
-      enabled: true,
       method: 'post' as const,
       url: 'https://api.example.com/login',
-      body: '{"email":"test@example.com"}'
+      body: '{"email":"test@example.com"}',
+      pinData: false
     }
 
     saveTokenIssuanceConfig(projectId, config)
@@ -37,7 +39,7 @@ describe('token-issuance-storage', () => {
   })
 
   it('필드가 누락되면 null을 반환해야 함', () => {
-    sessionStorage.setItem(getStorageKey(projectId), JSON.stringify({ enabled: true }))
+    sessionStorage.setItem(getStorageKey(projectId), JSON.stringify({ method: 'post' }))
     expect(loadTokenIssuanceConfig(projectId)).toBeNull()
   })
 

@@ -1,16 +1,23 @@
 <template>
   <div class="token-issuance-settings">
+    <label class="pin-label">
+      <input v-model="draft.pinData" type="checkbox" class="toggle-input" />
+      <span>데이터 고정하기</span>
+    </label>
+
     <div class="settings-header">
       <h3>토큰 발급 API</h3>
-      <label class="toggle-label">
-        <input v-model="draft.enabled" type="checkbox" class="toggle-input" />
-        <span>활성화</span>
-      </label>
     </div>
 
     <p class="help-text">
-      로그인·토큰 발급 API를 설정하면 우측 하단 FAB로 Bearer token을 한 번에 받을 수 있습니다.
-      proxy는 <strong>공개 URL만</strong> 요청할 수 있으며, 설정은 <strong>탭을 닫으면 삭제</strong>됩니다.
+      로그인·토큰 발급 API를 설정하고 저장하면 우측 하단 FAB로 Bearer token을 한 번에 받을 수 있습니다.
+      proxy는 <strong>공개 URL만</strong> 요청할 수 있으며,
+      <template v-if="draft.pinData">
+        <strong>데이터 고정</strong> 시 입력값이 쿠키에 저장되어 브라우저를 다시 열어도 유지됩니다.
+      </template>
+      <template v-else>
+        설정은 <strong>탭을 닫으면 삭제</strong>됩니다.
+      </template>
     </p>
 
     <div class="form-row">
@@ -89,6 +96,24 @@ function handleSave(event: MouseEvent) {
   border-top: 1px solid var(--color-border-light);
 }
 
+.pin-label {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-sm;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 .settings-header {
   display: flex;
   align-items: center;
@@ -102,22 +127,6 @@ function handleSave(event: MouseEvent) {
     color: var(--color-text-primary);
     margin: 0;
   }
-}
-
-.toggle-label {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-xs;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.toggle-input {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
 }
 
 .help-text {

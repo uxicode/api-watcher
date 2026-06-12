@@ -16,19 +16,9 @@ function isIssuanceMethod(value: string): value is IssuanceMethod {
 }
 
 export function validateTokenIssuanceConfig(
-  config: TokenIssuanceConfig,
-  options: { requireEnabled?: boolean } = {}
+  config: TokenIssuanceConfig
 ): TokenIssuanceValidationResult {
   const errors: string[] = []
-
-  if (options.requireEnabled && !config.enabled) {
-    errors.push('토큰 발급 API가 비활성화되어 있습니다')
-    return { isValid: false, errors }
-  }
-
-  if (!config.enabled) {
-    return { isValid: true, errors }
-  }
 
   if (!isIssuanceMethod(config.method)) {
     errors.push('허용되지 않는 HTTP 메서드입니다')

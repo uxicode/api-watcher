@@ -65,7 +65,7 @@ export function useTokenIssuance(
   })
 
   const canShowIssuanceFab = computed(() => {
-    if (!savedConfig.value?.enabled) return false
+    if (!savedConfig.value) return false
     return validateTokenIssuanceConfig(savedConfig.value).isValid
   })
 
@@ -99,7 +99,7 @@ export function useTokenIssuance(
 
   async function issueBearerToken(): Promise<IssueBearerTokenResult> {
     const config = savedConfig.value ?? loadTokenIssuanceConfigOrDefault(unref(projectId))
-    const validation = validateTokenIssuanceConfig(config, { requireEnabled: true })
+    const validation = validateTokenIssuanceConfig(config)
 
     if (!validation.isValid) {
       return {

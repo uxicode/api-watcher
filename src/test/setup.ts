@@ -25,6 +25,41 @@ Object.defineProperty(window, 'sessionStorage', {
   value: createStorageMock()
 })
 
+let cookieStore: Record<string, string> = {}
+
+function buildCookieString(): string {
+  return Object.entries(cookieStore)
+    .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+    .join('; ')
+}
+
+Object.defineProperty(document, 'cookie', {
+  configurable: true,
+  get() {
+    return buildCookieString()
+  },
+  set(value: string) {
+    const [pair, ...attributes] = value.split(';').map((part) => part.trim())
+    const separatorIndex = pair.indexOf('=')
+    if (separatorIndex === -1) return
+
+    const name = pair.slice(0, separatorIndex)
+    const rawValue = pair.slice(separatorIndex + 1)
+    const decodedValue = decodeURIComponent(rawValue)
+
+    if (attributes.some((attribute) => attribute === 'max-age=0')) {
+      delete cookieStore[name]
+      return
+    }
+
+    cookieStore[name] = decodedValue
+  }
+})
+
+export function clearCookieStore() {
+  cookieStore = {}
+}
+
 // Clipboard API 모킹
 Object.defineProperty(navigator, 'clipboard', {
   value: {
